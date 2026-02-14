@@ -1,0 +1,19 @@
+[project]
+name = "app_r718"
+version = "0.1.0"
+description = "Simulation d'éjecteur de réfrigération au R718"
+authors = [{name = "LISONGO SEMETE"}]
+dependencies = [
+    "CoolProp",
+    "scipy",
+    "matplotlib",
+    "pandas",
+    "pytest"
+]
+
+[tool.setuptools]
+packages = ["src"] # Indique où se trouve le code source
+
+[tool.pytest.ini_options]
+pythonpath = ["."] # Résout ton erreur "ModuleNotFoundError: No module named src"
+testpaths = ["test"]
