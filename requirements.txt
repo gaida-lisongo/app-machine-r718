@@ -1,0 +1,6 @@
+CoolProp
+numpy
+scipy
+matplotlib
+pandas
+pytest
