@@ -312,7 +312,18 @@ class EvaporatorTkView:
         ttk.Label(left_frame, text="Surchauffe superheat_K [K]:").grid(row=16, column=0, sticky="w", pady=2)
         ttk.Entry(left_frame, textvariable=var_superheat_K, width=20).grid(row=16, column=1, pady=2)
         
-        # Simulate button
+        # ========== RIGHT PANEL: Results ==========
+        right_frame = ttk.Frame(window, padding=10)
+        right_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
+        
+        # Results title
+        ttk.Label(
+            right_frame,
+            text="Résultats de simulation",
+            font=("Arial", 12, "bold"),
+        ).grid(row=0, column=0, columnspan=2, pady=10, sticky="w")
+        
+        # Simulate button - Define first so it can be used in the function
         def simulate():
             try:
                 # Check if state2 is loaded
@@ -357,30 +368,20 @@ class EvaporatorTkView:
             except Exception as e:
                 messagebox.showerror("Erreur", f"Erreur simulation:\n{str(e)}")
         
+        # Simulate button (prominent placement)
         ttk.Button(
-            left_frame,
+            right_frame,
             text="▶ Simuler",
             command=simulate,
-            width=20,
-        ).grid(row=17, column=0, columnspan=2, pady=20)
-        
-        # ========== RIGHT PANEL: Results ==========
-        right_frame = ttk.Frame(window, padding=10)
-        right_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
-        
-        # Results title
-        ttk.Label(
-            right_frame,
-            text="Résultats de simulation",
-            font=("Arial", 12, "bold"),
-        ).grid(row=0, column=0, pady=10, sticky="w")
+            width=25,
+        ).grid(row=1, column=0, columnspan=2, pady=10)
         
         # Results text widget
-        results_text = tk.Text(right_frame, width=50, height=20, wrap="word")
-        results_text.grid(row=1, column=0, sticky="nsew", pady=5)
+        results_text = tk.Text(right_frame, width=50, height=18, wrap="word")
+        results_text.grid(row=2, column=0, sticky="nsew", pady=5)
         
         scrollbar = ttk.Scrollbar(right_frame, orient="vertical", command=results_text.yview)
-        scrollbar.grid(row=1, column=1, sticky="ns")
+        scrollbar.grid(row=2, column=1, sticky="ns")
         results_text.config(yscrollcommand=scrollbar.set)
         
         def display_results(result: EvaporatorResult, state2: ThermoState):
@@ -582,4 +583,4 @@ class EvaporatorTkView:
         
         left_frame.columnconfigure(1, weight=1)
         right_frame.columnconfigure(0, weight=1)
-        right_frame.rowconfigure(1, weight=1)
+        right_frame.rowconfigure(2, weight=1)
