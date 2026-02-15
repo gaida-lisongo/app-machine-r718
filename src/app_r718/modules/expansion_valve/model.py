@@ -100,8 +100,8 @@ class ExpansionValveModel:
             "invalid_delta_p": False,
         }
         
-        # Check for deep vacuum
-        if P_out < 2000:
+        # Check for deep vacuum (below typical evaporator pressures for R718)
+        if P_out < 1100.0:
             flags["deep_vacuum_warning"] = True
         
         # Check for invalid pressure drop
