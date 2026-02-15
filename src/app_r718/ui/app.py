@@ -103,15 +103,23 @@ class MainWindow:
         )
         btn_condenser.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
         
+        # Pump (available)
+        btn_pump = ttk.Button(
+            parent,
+            text="⚙️ Pompe (Pump)",
+            command=self._open_pump,
+            **button_style,
+        )
+        btn_pump.grid(row=3, column=0, padx=10, pady=5, sticky="ew")
+        
         # Future modules (disabled for now)
         future_modules = [
-            "⚙️ Pompe (Pump)",
             "🔥 Générateur (Generator)",
             "🚀 Éjecteur (Ejector)",
             "🔄 Système Complet (Full System)",
         ]
         
-        for i, module_name in enumerate(future_modules, start=3):
+        for i, module_name in enumerate(future_modules, start=4):
             btn = ttk.Button(
                 parent,
                 text=module_name,
@@ -143,6 +151,13 @@ class MainWindow:
         from app_r718.modules.condenser.view import CondenserTkView
         
         CondenserTkView.open_window(self.root)
+    
+    def _open_pump(self):
+        """Open the Pump simulation window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.pump.view import PumpTkView
+        
+        PumpTkView.open_window(self.root)
     
     def run(self):
         """Start the application main loop."""
