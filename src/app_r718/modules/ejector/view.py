@@ -10,6 +10,7 @@ Date: 2026-02-15
 from app_r718.core.thermo_state import ThermoState
 from app_r718.core.props_service import get_props_service
 from app_r718.modules.ejector import EjectorController, EjectorResult
+from app_r718.modules.ejector.model_v2 import EjectorResultV2
 
 
 class EjectorView:
@@ -48,7 +49,8 @@ class EjectorTkView:
         from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
         import numpy as np
         
-        controller = EjectorController()
+        # Controller starts in V1 mode
+        controller = EjectorController(mode="V1")
         props = get_props_service()
         
         # Create window
@@ -207,6 +209,39 @@ class EjectorTkView:
             row=12, column=1, sticky="w", pady=2
         )
         
+        # --- Model Selection (V1 vs V2) ---
+        ttk.Separator(left_frame, orient="horizontal").grid(
+            row=13, column=0, columnspan=2, sticky="ew", pady=10
+        )
+        
+        ttk.Label(left_frame, text="Modèle:", font=("Arial", 10, "bold")).grid(
+            row=14, column=0, columnspan=2, sticky="w", pady=5
+        )
+        
+        var_use_v2 = tk.BooleanVar(value=False)
+        
+        def toggle_model_version():
+            """Switch between V1 and V2 models."""
+            if var_use_v2.get():
+                controller.set_mode("V2")
+            else:
+                controller.set_mode("V1")
+        
+        chk_v2 = ttk.Checkbutton(
+            left_frame,
+            text="☑ Activer modèle compressible V2 (Mach + choc)",
+            variable=var_use_v2,
+            command=toggle_model_version,
+        )
+        chk_v2.grid(row=15, column=0, columnspan=2, sticky="w", pady=2)
+        
+        ttk.Label(
+            left_frame,
+            text="V2: Calcul Mach, choking, onde de choc normale",
+            font=("Arial", 8, "italic"),
+            foreground="gray",
+        ).grid(row=16, column=0, columnspan=2, sticky="w", padx=20)
+        
         # ========== RIGHT PANEL: RESULTS ==========
         right_frame = ttk.LabelFrame(main_frame, text="📊 Résultats", padding=10)
         right_frame.grid(row=0, column=1, sticky="nsew", padx=5, pady=5)
@@ -353,6 +388,22 @@ class EjectorTkView:
             if result.state_out.x is not None:
                 output.append(f"  x = {result.state_out.x:.4f}")
             output.append("")
+            
+            # V2-specific results (if using V2 model)
+            if isinstance(result, EjectorResultV2):
+                output.append("🚀 COMPRESSIBLE FLOW (V2):")
+                output.append(f"  Régime: {result.regime}")
+                output.append(f"  Mach tuyère primaire: {result.mach_primary_nozzle:.3f}")
+                if result.shock_location != "none":
+                    output.append(f"  Mach avant choc: {result.mach_before_shock:.3f}")
+                    output.append(f"  Mach après choc: {result.mach_after_shock:.3f}")
+                    output.append(f"  Localisation choc: {result.shock_location}")
+                    output.append(f"  Saut d'entropie: {result.entropy_jump:.2f} J/kg/K")
+                    output.append(f"  P avant choc: {result.P_before_shock/1e3:.2f} kPa")
+                    output.append(f"  P après choc: {result.P_after_shock/1e3:.2f} kPa")
+                else:
+                    output.append(f"  Pas de choc détecté (écoulement subsonique)")
+                output.append("")
             
             # Diagnostic flags
             output.append("🚩 Diagnostics:")
@@ -546,6 +597,35 @@ class EjectorTkView:
             ax_ts.plot([states['mix'][2], states['out'][2]], 
                       [states['mix'][3], states['out'][3]], 
                       'darkred', linewidth=2.5, zorder=3)
+            
+            # V2-specific: Mark shock wave on T-s diagram
+            if isinstance(result, EjectorResultV2) and result.shock_location != "none":
+                # Mark entropy jump at shock location
+                # Assuming shock occurs at mixing state
+                shock_s = states['mix'][2]
+                shock_T = states['mix'][3]
+                
+                # Draw shock indicator
+                ax_ts.plot(shock_s, shock_T, 'kX', markersize=15, 
+                          label='Choc normal', zorder=5, markeredgewidth=2)
+                ax_ts.annotate('CHOC', xy=(shock_s, shock_T), 
+                              xytext=(shock_s + 0.2, shock_T + 10),
+                              fontsize=10, fontweight='bold', color='red',
+                              arrowprops=dict(arrowstyle='->', color='red', lw=2))
+                
+                # Indicate supersonic/subsonic zones
+                if result.mach_before_shock > 1.0:
+                    ax_ts.text(0.05, 0.95, 'Zone supersonique avant choc', 
+                              transform=ax_ts.transAxes, fontsize=9, 
+                              color='red', fontweight='bold', 
+                              verticalalignment='top',
+                              bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.5))
+                if result.mach_after_shock < 1.0:
+                    ax_ts.text(0.05, 0.88, 'Zone subsonique après choc', 
+                              transform=ax_ts.transAxes, fontsize=9, 
+                              color='blue', fontweight='bold', 
+                              verticalalignment='top',
+                              bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
             
             # Add arrows
             ax_ts.annotate('', xy=(states['p_noz'][2], states['p_noz'][3]), 
