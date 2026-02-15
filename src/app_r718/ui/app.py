@@ -130,19 +130,14 @@ class MainWindow:
         )
         btn_ejector.grid(row=5, column=0, padx=10, pady=5, sticky="ew")
         
-        # Future modules (disabled for now)
-        future_modules = [
-            "🔄 Système Complet (Full System)",
-        ]
-        
-        for i, module_name in enumerate(future_modules, start=6):
-            btn = ttk.Button(
-                parent,
-                text=module_name,
-                state="disabled",
-                **button_style,
-            )
-            btn.grid(row=i, column=0, padx=10, pady=5, sticky="ew")
+        # System Dashboard (available)
+        btn_system = ttk.Button(
+            parent,
+            text="🔄 Système Complet (Dashboard)",
+            command=self._open_system_dashboard,
+            **button_style,
+        )
+        btn_system.grid(row=6, column=0, padx=10, pady=5, sticky="ew")
         
         # Configure grid
         parent.columnconfigure(0, weight=1)
@@ -188,6 +183,13 @@ class MainWindow:
         from app_r718.modules.ejector.view import EjectorTkView
         
         EjectorTkView.open_window(self.root)
+    
+    def _open_system_dashboard(self):
+        """Open the System Dashboard window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.system_dashboard.view import open_system_dashboard
+        
+        open_system_dashboard(self.root)
     
     def run(self):
         """Start the application main loop."""
