@@ -193,9 +193,13 @@ class TestGeneratorFlags:
         # Verify thermal mismatch is detected
         assert result.flags["thermal_mismatch"], "thermal_mismatch should be True for small area"
     
-    def test_insufficient_heating(self, controller, nominal_state_in, props):
+    def test_heat_exchanger_undersizing(self, controller, nominal_state_in, props):
         """
-        Test insufficient_heating flag when Q_KA is much less than Q_mass.
+        Test thermal_mismatch flag when heat exchanger is undersized.
+        
+        When K is very low, Q_KA will be much less than Q_mass required,
+        triggering thermal_mismatch flag (not insufficient_heating, since
+        outlet state is imposed regardless of exchanger capacity).
         """
         # Very small K → Q_KA << Q_mass
         K_small = 10.0  # W/m²/K (very low)
@@ -211,8 +215,10 @@ class TestGeneratorFlags:
             superheat_K=0.0,
         )
         
-        # Verify insufficient heating flag
-        assert result.flags["insufficient_heating"], "insufficient_heating should be True for low K"
+        # Verify thermal mismatch is detected (not insufficient_heating)
+        # Since outlet state is imposed, we can't "fail to heat" - we just
+        # have a mismatch between required heat (Q_mass) and exchanger capacity (Q_KA)
+        assert result.flags["thermal_mismatch"], "thermal_mismatch should be True for undersized exchanger"
 
 
 class TestGeneratorSuperheat:
@@ -452,7 +458,7 @@ def test_summary():
     print("Tests cover:")
     print("  ✓ Nominal heating to saturated vapor")
     print("  ✓ Heat balance consistency (Q_mass vs Q_KA)")
-    print("  ✓ Diagnostic flags (invalid LMTD, thermal mismatch, insufficient heating)")
+    print("  ✓ Diagnostic flags (invalid LMTD, thermal mismatch, exchanger undersizing)")
     print("  ✓ Superheated vapor generation")
     print("  ✓ Different generator temperatures/pressures")
     print("  ✓ Mass flow rate effects")

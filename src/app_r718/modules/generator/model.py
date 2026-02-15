@@ -77,7 +77,6 @@ class GeneratorModel:
         """
         # Initialize flags
         flags = {
-            "insufficient_heating": False,
             "invalid_LMTD": False,
             "negative_heat_input": False,
             "thermal_mismatch": False,
@@ -147,12 +146,11 @@ class GeneratorModel:
         delta_relative = abs(Q_mass - Q_KA) / max(abs(Q_mass), abs(Q_KA), eps)
         
         # Flag thermal mismatch if relative difference > 20%
+        # Note: Since outlet state is imposed (x=1 or superheat), thermal_mismatch
+        # indicates heat exchanger undersizing, not failure to reach target state.
+        # Q_mass is the required heat, Q_KA is what the exchanger can provide.
         if delta_relative > 0.20:
             flags["thermal_mismatch"] = True
-        
-        # Check if HTF provides sufficient heating
-        if Q_KA < 0.5 * Q_mass:
-            flags["insufficient_heating"] = True
         
         return GeneratorResult(
             state_out=state_out,
