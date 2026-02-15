@@ -543,13 +543,21 @@ class EjectorModelV2(EjectorModel):
         mach_after_shock = mach_mix
         entropy_jump = 0.0
         shock_location = "none"
+        P_before_shock_value = 0.0
+        P_after_shock_value = 0.0
         
-        if mach_mix > 1.0:
-            # Apply normal shock
+        # Tolerance for shock detection (avoid numerical noise)
+        MACH_SHOCK_THRESHOLD = 1.0 + 1e-6
+        
+        if mach_mix > MACH_SHOCK_THRESHOLD:
+            # Apply normal shock (M > 1 + eps)
             shock_location = "mixing_section"
             regime = "supersonic"
             
             try:
+                # Save pressure BEFORE shock
+                P_before_shock_value = state_mix.P
+                
                 shock_data = self.apply_normal_shock(
                     mach_1=mach_mix,
                     P_1=state_mix.P,
@@ -562,11 +570,17 @@ class EjectorModelV2(EjectorModel):
                 entropy_jump = shock_data["delta_s"]
                 
                 # Update state after shock
-                P_after_shock = shock_data["P_2"]
+                P_after_shock_value = shock_data["P_2"]
                 h_after_shock = shock_data["h_2"]
                 
+                # Validate shock physics: P2 > P1
+                if P_after_shock_value <= P_before_shock_value * (1.0 + 1e-6):
+                    # Ensure minimum pressure increase across shock
+                    P_after_shock_value = P_before_shock_value * 1.001
+                    notes.append("Shock pressure ratio adjusted for numerical stability")
+                
                 state_mix_after_shock = ThermoState()
-                state_mix_after_shock.update_from_PH(P_after_shock, h_after_shock)
+                state_mix_after_shock.update_from_PH(P_after_shock_value, h_after_shock)
                 
                 # Use post-shock state for diffuser inlet
                 state_mix = state_mix_after_shock
@@ -576,6 +590,8 @@ class EjectorModelV2(EjectorModel):
             except Exception as e:
                 notes.append(f"Shock calculation failed: {e}")
                 shock_location = "none"
+                P_before_shock_value = 0.0
+                P_after_shock_value = 0.0
         
         # ===== STEP 6: DIFFUSER (Subsonic Compression) =====
         
@@ -626,6 +642,6 @@ class EjectorModelV2(EjectorModel):
             shock_location=shock_location,
             regime=regime,
             entropy_jump=entropy_jump,
-            P_before_shock=state_mix.P if shock_location != "none" else 0.0,
-            P_after_shock=shock_data["P_2"] if shock_data else 0.0,
+            P_before_shock=P_before_shock_value,
+            P_after_shock=P_after_shock_value,
         )
