@@ -408,152 +408,171 @@ class SystemDashboardView:
         self._plot_empty_diagrams()
     
     def _draw_cycle_schematic(self):
-        """Draw R718 ejector cycle schematic with STRICT state numbering 1-8."""
+        """
+        Draw R718 ejector cycle schematic with OFFICIAL numbering convention.
+        
+        CONVENTION OFFICIELLE (context.md):
+            1→2: Détendeur
+            2→3: Évaporateur
+            3→4: Chambre de mélange (secondaire)
+            4→5: Diffuseur
+            5→6: Condenseur
+            1→7: Pompe
+            7→8: Chaudière
+            8→4: Tuyère (primaire)
+        """
         self.canvas.delete("all")
         w = self.canvas.winfo_width() if self.canvas.winfo_width() > 1 else 800
         h = self.canvas.winfo_height() if self.canvas.winfo_height() > 1 else 320
         
-        # Layout physique du cycle (selon context.md):
-        # CYCLE MOTEUR HP: Condenseur → Pompe → Générateur → Éjecteur (tuyère primaire)
-        # CYCLE FRIGO BP: Condenseur → Détendeur → Évaporateur → Éjecteur (aspiration secondaire)
-        # ÉJECTEUR: Mélange primaire+secondaire → Diffuseur → Condenseur
-        
         components = {
             'condenser': (0.50 * w, 0.15 * h),   # Centre haut
             'pump': (0.15 * w, 0.35 * h),        # Gauche haut
-            'generator': (0.15 * w, 0.65 * h),   # Gauche bas
+            'generator': (0.15 * w, 0.65 * h),   # Gauche bas (chaudière)
             'ejector': (0.50 * w, 0.50 * h),     # Centre milieu
-            'valve': (0.85 * w, 0.35 * h),       # Droite haut
+            'valve': (0.85 * w, 0.35 * h),       # Droite haut (détendeur)
             'evaporator': (0.85 * w, 0.65 * h),  # Droite bas
         }
         
-        # Draw components as shapes
         box_w, box_h = 70, 40
         
-        # Condenser (top right - gray)
+        # Condenser (top center - gray)
         x, y = components['condenser']
         self.canvas.create_rectangle(x-box_w/2, y-box_h/2, x+box_w/2, y+box_h/2, 
                                      fill='#e6e6e6', outline='black', width=2, tags='component')
-        self.canvas.create_text(x, y-10, text="Condenseur", font=('Arial', 8, 'bold'))
-        self.canvas.create_text(x, y+10, text="(8→1)", font=('Arial', 7), fill='gray')
+        self.canvas.create_text(x, y, text="Condenseur", font=('Arial', 8, 'bold'))
         
-        # Pump (left middle - green)
+        # Pump (left top - green)
         x, y = components['pump']
         self.canvas.create_oval(x-25, y-25, x+25, y+25, fill='#ccffcc', outline='green', width=2, tags='component')
-        self.canvas.create_text(x, y-5, text="Pompe", font=('Arial', 8, 'bold'))
-        self.canvas.create_text(x, y+8, text="(1→2)", font=('Arial', 7), fill='darkgreen')
+        self.canvas.create_text(x, y, text="Pompe", font=('Arial', 8, 'bold'))
         
-        # Generator (left bottom - red/hot)
+        # Generator/Boiler (left bottom - red/hot)
         x, y = components['generator']
         self.canvas.create_rectangle(x-box_w/2, y-box_h/2, x+box_w/2, y+box_h/2, 
                                      fill='#ffcccc', outline='red', width=2, tags='component')
-        self.canvas.create_text(x, y-10, text="Générateur", font=('Arial', 8, 'bold'))
-        self.canvas.create_text(x, y+10, text="(2→3)", font=('Arial', 7), fill='darkred')
+        self.canvas.create_text(x, y, text="Chaudière", font=('Arial', 8, 'bold'))
         
         # Ejector (center - blue)
         x, y = components['ejector']
-        # Draw ejector as convergent-divergent nozzle shape
         pts = [x-40, y-20, x-10, y, x-40, y+20, x+30, y+15, x+30, y-15]
         self.canvas.create_polygon(pts, fill='#cce5ff', outline='blue', width=2, tags='component')
-        self.canvas.create_text(x, y-5, text="Éjecteur", font=('Arial', 8, 'bold'))
-        self.canvas.create_text(x, y+10, text="(3,5→8)", font=('Arial', 7), fill='darkblue')
+        self.canvas.create_text(x-5, y, text="Éjecteur", font=('Arial', 8, 'bold'))
         
-        # Expansion Valve (right middle - orange)
+        # Expansion Valve (right top - orange)
         x, y = components['valve']
         self.canvas.create_polygon(x-15, y-20, x+15, y-20, x+15, y, x-15, y+20, 
                                    fill='#ffe6cc', outline='orange', width=2, tags='component')
         self.canvas.create_text(x, y+28, text="Détendeur", font=('Arial', 7))
-        self.canvas.create_text(x, y-28, text="(1→6)", font=('Arial', 7), fill='darkorange')
         
         # Evaporator (right bottom - cyan/cold)
         x, y = components['evaporator']
         self.canvas.create_rectangle(x-box_w/2, y-box_h/2, x+box_w/2, y+box_h/2, 
                                      fill='#ccffff', outline='cyan', width=2, tags='component')
-        self.canvas.create_text(x, y-10, text="Évaporateur", font=('Arial', 8, 'bold'))
-        self.canvas.create_text(x, y+10, text="(6→5)", font=('Arial', 7), fill='darkcyan')
+        self.canvas.create_text(x, y, text="Évaporateur", font=('Arial', 8, 'bold'))
         
-        # ===== DRAW PIPES WITH STATE NUMBERS =====
+        # ===== DRAW PIPES WITH STATE NUMBERS (CONVENTION OFFICIELLE) =====
         
-        # Condenser → Pump (1)
-        x1, y1 = components['condenser']
-        x2, y2 = components['pump']
-        mid_y = y1 + box_h/2
-        # Vertical down from condenser
-        self.canvas.create_line(x1, y1+box_h/2, x1, mid_y+30, fill='black', width=2, tags='pipe')
-        # Horizontal to pump
-        self.canvas.create_line(x1, mid_y+30, x2+25, mid_y+30, fill='black', width=2, tags='pipe')
-        # Down to pump
-        self.canvas.create_line(x2+25, mid_y+30, x2+25, y2, fill='black', width=2, arrow=tk.LAST, tags='pipe')
-        # State label 1
-        self.canvas.create_text(x1+15, mid_y+20, text="①", font=('Arial', 12, 'bold'), 
-                               fill='white', tags='state_label')
-        self.canvas.create_oval(x1+8, mid_y+13, x1+22, mid_y+27, fill='blue', outline='darkblue', width=2, tags='state_marker')
-        self.canvas.create_text(x1+15, mid_y+20, text="①", font=('Arial', 12, 'bold'), 
+        # State 1: Sortie condenseur (bifurcation)
+        x_cond, y_cond = components['condenser']
+        x_valve, y_valve = components['valve']
+        x_pump, y_pump = components['pump']
+        
+        # Bifurcation point
+        bifur_x, bifur_y = x_cond, y_cond + box_h/2 + 20
+        self.canvas.create_oval(bifur_x-8, bifur_y-8, bifur_x+8, bifur_y+8, 
+                               fill='black', outline='darkblue', width=2, tags='state_marker')
+        self.canvas.create_text(bifur_x, bifur_y, text="1", font=('Arial', 10, 'bold'), 
                                fill='white', tags='state_label')
         
-        # Pump → Generator (2)
-        x1, y1 = components['pump']
-        x2, y2 = components['generator']
-        self.canvas.create_line(x1, y1+25, x1, y2-box_h/2, fill='green', width=2, arrow=tk.LAST, tags='pipe')
-        # State label 2
-        self.canvas.create_oval(x1-7, (y1+y2)/2-7, x1+7, (y1+y2)/2+7, fill='green', outline='darkgreen', width=2, tags='state_marker')
-        self.canvas.create_text(x1, (y1+y2)/2, text="②", font=('Arial', 12, 'bold'), 
+        # Line from condenser to bifurcation
+        self.canvas.create_line(x_cond, y_cond+box_h/2, bifur_x, bifur_y, 
+                               fill='black', width=2, tags='pipe')
+        
+        # 1→2: Détendeur (branch to right)
+        mid_x_valve = (bifur_x + x_valve) / 2
+        self.canvas.create_line(bifur_x, bifur_y, mid_x_valve, bifur_y, 
+                               fill='black', width=2, tags='pipe')
+        self.canvas.create_line(mid_x_valve, bifur_y, x_valve, y_valve-20, 
+                               fill='black', width=2, arrow=tk.LAST, tags='pipe')
+        
+        # State 2: Sortie détendeur
+        self.canvas.create_oval(x_valve-7, y_valve+25-7, x_valve+7, y_valve+25+7, 
+                               fill='orange', outline='darkorange', width=2, tags='state_marker')
+        self.canvas.create_text(x_valve, y_valve+25, text="2", font=('Arial', 10, 'bold'), 
                                fill='white', tags='state_label')
         
-        # Generator → Ejector primary (3)
-        x1, y1 = components['generator']
-        x2, y2 = components['ejector']
-        # Horizontal from generator
-        self.canvas.create_line(x1+box_w/2, y1, x2-40, y2, fill='red', width=3, arrow=tk.LAST, tags='pipe')
-        # State label 3
-        self.canvas.create_oval((x1+x2)/2-10-7, y1-7, (x1+x2)/2-10+7, y1+7, fill='red', outline='darkred', width=2, tags='state_marker')
-        self.canvas.create_text((x1+x2)/2-10, y1, text="③", font=('Arial', 12, 'bold'), 
-                               fill='white', tags='state_label')
+        # 2→3: Évaporateur
+        x_evap, y_evap = components['evaporator']
+        self.canvas.create_line(x_valve, y_valve+20, x_evap, y_evap-box_h/2, 
+                               fill='orange', width=2, arrow=tk.LAST, tags='pipe')
         
-        # Evaporator → Ejector secondary (5)
-        x1, y1 = components['evaporator']
-        x2, y2 = components['ejector']
-        # Up from evaporator
-        self.canvas.create_line(x1-box_w/2, y1, x2-40, y2+20, fill='cyan', width=3, arrow=tk.LAST, tags='pipe')
-        # State label 5
-        self.canvas.create_oval(x1-box_w/2-15-7, (y1+y2)/2+10-7, x1-box_w/2-15+7, (y1+y2)/2+10+7, 
+        # State 3: Sortie évaporateur
+        self.canvas.create_oval(x_evap-box_w/2-15-7, y_evap-7, x_evap-box_w/2-15+7, y_evap+7, 
                                fill='cyan', outline='darkcyan', width=2, tags='state_marker')
-        self.canvas.create_text(x1-box_w/2-15, (y1+y2)/2+10, text="⑤", font=('Arial', 12, 'bold'), 
-                               fill='black', tags='state_label')
-        
-        # Ejector → Condenser (8)
-        x1, y1 = components['ejector']
-        x2, y2 = components['condenser']
-        self.canvas.create_line(x1+30, y1, x2-box_w/2, y2, fill='purple', width=3, arrow=tk.LAST, tags='pipe')
-        # State label 8
-        self.canvas.create_oval((x1+x2)/2-7, y1-7, (x1+x2)/2+7, y1+7, fill='purple', outline='indigo', width=2, tags='state_marker')
-        self.canvas.create_text((x1+x2)/2, y1, text="⑧", font=('Arial', 12, 'bold'), 
+        self.canvas.create_text(x_evap-box_w/2-15, y_evap, text="3", font=('Arial', 10, 'bold'), 
                                fill='white', tags='state_label')
         
-        # Condenser → Valve (1→6 branch)
-        x1, y1 = components['condenser']
-        x2, y2 = components['valve']
-        self.canvas.create_line(x1, y1+box_h/2, x2, y2-20, fill='black', width=2, arrow=tk.LAST, tags='pipe')
-        # State label 6
-        self.canvas.create_oval(x2-7, y2-35-7, x2+7, y2-35+7, fill='orange', outline='darkorange', width=2, tags='state_marker')
-        self.canvas.create_text(x2, y2-35, text="⑥", font=('Arial', 12, 'bold'), 
+        # 3→4: Aspiration secondaire vers éjecteur
+        x_ej, y_ej = components['ejector']
+        self.canvas.create_line(x_evap-box_w/2, y_evap, x_ej-40, y_ej+20, 
+                               fill='cyan', width=2, arrow=tk.LAST, tags='pipe')
+        
+        # 1→7: Pompe (branch to left)
+        mid_x_pump = (bifur_x + x_pump + 25) / 2
+        self.canvas.create_line(bifur_x, bifur_y, mid_x_pump, bifur_y, 
+                               fill='black', width=2, tags='pipe')
+        self.canvas.create_line(mid_x_pump, bifur_y, x_pump+25, y_pump, 
+                               fill='black', width=2, arrow=tk.LAST, tags='pipe')
+        
+        # State 7: Sortie pompe
+        x_gen, y_gen = components['generator']
+        self.canvas.create_oval(x_pump-7, (y_pump+y_gen)/2-7, x_pump+7, (y_pump+y_gen)/2+7, 
+                               fill='green', outline='darkgreen', width=2, tags='state_marker')
+        self.canvas.create_text(x_pump, (y_pump+y_gen)/2, text="7", font=('Arial', 10, 'bold'), 
                                fill='white', tags='state_label')
         
-        # Valve → Evaporator (6→5)
-        x1, y1 = components['valve']
-        x2, y2 = components['evaporator']
-        self.canvas.create_line(x1, y1+20, x2, y2-box_h/2, fill='orange', width=2, arrow=tk.LAST, tags='pipe')
+        # 7→8: Chaudière
+        self.canvas.create_line(x_pump, y_pump+25, x_gen, y_gen-box_h/2, 
+                               fill='green', width=2, arrow=tk.LAST, tags='pipe')
         
-        # Add legend
-        legend_x, legend_y = 10, h - 60
-        self.canvas.create_text(legend_x, legend_y, text="États thermodynamiques:", 
+        # State 8: Sortie chaudière
+        self.canvas.create_oval((x_gen+x_ej)/2-15-7, y_gen-7, (x_gen+x_ej)/2-15+7, y_gen+7, 
+                               fill='red', outline='darkred', width=2, tags='state_marker')
+        self.canvas.create_text((x_gen+x_ej)/2-15, y_gen, text="8", font=('Arial', 10, 'bold'), 
+                               fill='white', tags='state_label')
+        
+        # 8→4: Tuyère primaire
+        self.canvas.create_line(x_gen+box_w/2, y_gen, x_ej-40, y_ej, 
+                               fill='red', width=3, arrow=tk.LAST, tags='pipe')
+        
+        # State 4: Chambre de mélange (inside ejector)
+        self.canvas.create_oval(x_ej-15-5, y_ej-5, x_ej-15+5, y_ej+5, 
+                               fill='blue', outline='darkblue', width=2, tags='state_marker')
+        self.canvas.create_text(x_ej-15, y_ej, text="4", font=('Arial', 9, 'bold'), 
+                               fill='white', tags='state_label')
+        
+        # 4→5: Diffuseur
+        # State 5 is at ejector outlet
+        self.canvas.create_oval(x_ej+35-7, y_ej-7, x_ej+35+7, y_ej+7, 
+                               fill='purple', outline='indigo', width=2, tags='state_marker')
+        self.canvas.create_text(x_ej+35, y_ej, text="5", font=('Arial', 10, 'bold'), 
+                               fill='white', tags='state_label')
+        
+        # 5→6: Condenseur
+        self.canvas.create_line(x_ej+30, y_ej, x_cond-box_w/2, y_cond, 
+                               fill='purple', width=2, arrow=tk.LAST, tags='pipe')
+        
+        # State 6: Sortie condenseur (retour = state 1)
+        self.canvas.create_oval(x_cond-box_w/2-15-6, y_cond-6, x_cond-box_w/2-15+6, y_cond+6, 
+                               fill='gray', outline='black', width=2, tags='state_marker')
+        self.canvas.create_text(x_cond-box_w/2-15, y_cond, text="6", font=('Arial', 9, 'bold'), 
+                               fill='white', tags='state_label')
+        
+        # Add simplified legend (NUMBERS ONLY per user request)
+        legend_x, legend_y = 10, h - 40
+        self.canvas.create_text(legend_x, legend_y, text="États: 1→2→3→4→5→6, 1→7→8→4", 
                                font=('Arial', 8, 'bold'), anchor='w')
-        self.canvas.create_text(legend_x, legend_y+15, 
-                               text="① Sortie cond. | ② Sortie pompe | ③ Sortie gén.", 
-                               font=('Arial', 7), anchor='w')
-        self.canvas.create_text(legend_x, legend_y+30, 
-                               text="⑤ Sortie évap. | ⑥ Après détente | ⑧ Sortie éjecteur", 
-                               font=('Arial', 7), anchor='w')
     
     def _plot_empty_diagrams(self):
         """Plot empty P-h and T-s diagrams with placeholder text."""
@@ -760,7 +779,15 @@ Lancer l'animation du cycle?"""
         self.txt_flags.config(state=tk.DISABLED)
     
     def _update_diagrams(self, result: CycleResult):
-        """Update P-h and T-s diagrams with cycle states."""
+        """
+        Update P-h and T-s diagrams with cycle states.
+        
+        CONVENTION OFFICIELLE (context.md):
+            1→2→3→4→5→6→1 (cycle principal)
+            1→7→8→4 (cycle chaud)
+        
+        AFFICHAGE: UNIQUEMENT LES NUMÉROS (1,2,3,4,5,6,7,8) - PAS DE TEXTE DESCRIPTIF
+        """
         states = result.states
         
         if not states:
@@ -770,14 +797,14 @@ Lancer l'animation du cycle?"""
         self.ax_ph.clear()
         self.ax_ph.set_xlabel('Enthalpie h [kJ/kg]', fontsize=11)
         self.ax_ph.set_ylabel('Pression P [kPa]', fontsize=11)
-        self.ax_ph.set_title('Diagramme P-h - Cycle R718 à Éjecteur', fontsize=12, fontweight='bold')
+        self.ax_ph.set_title('Diagramme P-h', fontsize=12, fontweight='bold')
         self.ax_ph.set_yscale('log')
         
         # Draw saturation dome (simplified)
         try:
             self._draw_saturation_dome_ph(self.ax_ph)
         except:
-            pass  # Skip if saturation dome fails
+            pass
         
         # Extract state properties
         def get_h(i):
@@ -786,58 +813,62 @@ Lancer l'animation du cycle?"""
         def get_P(i):
             return states[i].P / 1000.0 if i in states and states[i].P is not None else None
         
-        # CYCLE MOTEUR (HP - rouge): 1 → 2 → 3 → 4
-        if all(get_h(i) and get_P(i) for i in [1, 2, 3, 4]):
-            h_hp = [get_h(i) for i in [1, 2, 3, 4]]
-            P_hp = [get_P(i) for i in [1, 2, 3, 4]]
-            self.ax_ph.plot(h_hp, P_hp, 'r-', linewidth=2.5, label='Cycle Moteur (HP)', zorder=3)
-            self.ax_ph.plot(h_hp, P_hp, 'ro', markersize=8, zorder=4)
+        # CYCLE PRINCIPAL (bleu): 1→2→3→4→5→6→1
+        cycle_main = [1, 2, 3]
+        if all(get_h(i) and get_P(i) for i in cycle_main):
+            h_main = [get_h(i) for i in cycle_main]
+            P_main = [get_P(i) for i in cycle_main]
+            self.ax_ph.plot(h_main, P_main, 'b-', linewidth=2.5, zorder=3)
+            self.ax_ph.plot(h_main, P_main, 'bo', markersize=7, zorder=4)
         
-        # CYCLE FRIGORIFIQUE (BP - bleu): 1 → 6 (détente) → 5 (évaporation)
-        if all(get_h(i) and get_P(i) for i in [1, 6, 5]):
-            # 1 → 6: Détente isenthalpique (h constant, P diminue)
-            h_lp = [get_h(1), get_h(6), get_h(5)]
-            P_lp = [get_P(1), get_P(6), get_P(5)]
-            self.ax_ph.plot(h_lp, P_lp, 'b-', linewidth=2.5, label='Cycle Frigorifique (BP)', zorder=3)
-            # Marqueurs pour états 6 et 5
-            self.ax_ph.plot([get_h(6), get_h(5)], [get_P(6), get_P(5)], 'bo', markersize=8, zorder=4)
+        # CYCLE CHAUD (rouge): 1→7→8
+        cycle_hot = [1, 7, 8]
+        if all(get_h(i) and get_P(i) for i in cycle_hot):
+            h_hot = [get_h(i) for i in cycle_hot]
+            P_hot = [get_P(i) for i in cycle_hot]
+            self.ax_ph.plot(h_hot, P_hot, 'r-', linewidth=2.5, zorder=3)
+            self.ax_ph.plot(h_hot, P_hot, 'ro', markersize=7, zorder=4)
         
-        # ÉJECTEUR MÉLANGE (violet): 4 + 5 → 7 → 8 (PAS 6 qui est dans la branche BP!)
-        if all(get_h(i) and get_P(i) for i in [4, 5, 7, 8]):
-            # Primaire 4 vers mélange 7
-            self.ax_ph.plot([get_h(4), get_h(7)], [get_P(4), get_P(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
-            # Secondaire 5 vers mélange 7 (état 5 = sortie évaporateur)
-            self.ax_ph.plot([get_h(5), get_h(7)], [get_P(5), get_P(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
-            # Diffuseur 7 → 8
-            self.ax_ph.plot([get_h(7), get_h(8)], [get_P(7), get_P(8)], 'm-', linewidth=2.5, label='Éjecteur', zorder=3)
-            self.ax_ph.plot([get_h(7), get_h(8)], [get_P(7), get_P(8)], 'mo', markersize=8, zorder=4)
+        # ÉJECTEUR: 3→4 (secondaire), 8→4 (primaire), 4→5 (diffuseur)
+        # 3→4 (aspiration secondaire)
+        if all(get_h(i) and get_P(i) for i in [3, 4]):
+            self.ax_ph.plot([get_h(3), get_h(4)], [get_P(3), get_P(4)], 'c--', linewidth=2, alpha=0.6, zorder=2)
         
-        # CONDENSATION (vert): 8 → 1
-        if all(get_h(i) and get_P(i) for i in [8, 1]):
-            self.ax_ph.plot([get_h(8), get_h(1)], [get_P(8), get_P(1)], 'g-', linewidth=2.5, label='Condensation', zorder=3)
+        # 8→4 (tuyère primaire)
+        if all(get_h(i) and get_P(i) for i in [8, 4]):
+            self.ax_ph.plot([get_h(8), get_h(4)], [get_P(8), get_P(4)], 'r--', linewidth=2, alpha=0.6, zorder=2)
         
-        # Annotations des états avec labels physiques
-        labels = {
-            1: '①Cond.out', 2: '②Pompe', 3: '③Gén.', 4: '④Tuyère',
-            5: '⑤Évap.out', 6: '⑥Détente', 7: '⑦Mix', 8: '⑧Diff.'
-        }
-        for i, label in labels.items():
+        # 4→5 (diffuseur)
+        if all(get_h(i) and get_P(i) for i in [4, 5]):
+            self.ax_ph.plot([get_h(4), get_h(5)], [get_P(4), get_P(5)], 'm-', linewidth=2.5, zorder=3)
+            self.ax_ph.plot([get_h(4), get_h(5)], [get_P(4), get_P(5)], 'mo', markersize=7, zorder=4)
+        
+        # 5→6 (condensation)
+        if all(get_h(i) and get_P(i) for i in [5, 6]):
+            self.ax_ph.plot([get_h(5), get_h(6)], [get_P(5), get_P(6)], 'g-', linewidth=2.5, zorder=3)
+            self.ax_ph.plot([get_h(5), get_h(6)], [get_P(5), get_P(6)], 'go', markersize=7, zorder=4)
+        
+        # 6→1 (bouclage)
+        if all(get_h(i) and get_P(i) for i in [6, 1]):
+            self.ax_ph.plot([get_h(6), get_h(1)], [get_P(6), get_P(1)], 'g--', linewidth=1.5, alpha=0.5, zorder=2)
+        
+        # Annotations: UNIQUEMENT LES NUMÉROS (pas de texte)
+        for i in [1, 2, 3, 4, 5, 6, 7, 8]:
             h, P = get_h(i), get_P(i)
             if h and P:
-                self.ax_ph.annotate(label, (h, P), textcoords="offset points", 
-                                   xytext=(5, 5), fontsize=8, color='black', fontweight='bold',
-                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8, edgecolor='black'),
+                self.ax_ph.annotate(str(i), (h, P), textcoords="offset points", 
+                                   xytext=(6, 6), fontsize=11, color='black', fontweight='bold',
+                                   bbox=dict(boxstyle='circle,pad=0.3', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1.5),
                                    zorder=5)
         
         self.ax_ph.grid(True, alpha=0.3, which='both', linestyle='--')
-        self.ax_ph.legend(loc='best', fontsize=9)
         self.canvas_ph.draw()
         
         # ===== PLOT T-s DIAGRAM =====
         self.ax_ts.clear()
         self.ax_ts.set_xlabel('Entropie s [kJ/kg/K]', fontsize=11)
         self.ax_ts.set_ylabel('Température T [K]', fontsize=11)
-        self.ax_ts.set_title('Diagramme T-s - Cycle R718 à Éjecteur', fontsize=12, fontweight='bold')
+        self.ax_ts.set_title('Diagramme T-s', fontsize=12, fontweight='bold')
         
         # Draw saturation dome
         try:
@@ -851,43 +882,46 @@ Lancer l'animation du cycle?"""
         def get_T(i):
             return states[i].T if i in states and states[i].T is not None else None
         
-        # TRACER LE CYCLE COMPLET DANS L'ORDRE PHYSIQUE (T-s)
-        # Cycle Moteur HP: 1 → 2 (compression pompe) → 3 (génération vapeur) → 4 (détente tuyère)
-        if all(get_s(i) and get_T(i) for i in [1, 2, 3, 4]):
-            s_motor = [get_s(i) for i in [1, 2, 3, 4]]
-            T_motor = [get_T(i) for i in [1, 2, 3, 4]]
-            self.ax_ts.plot(s_motor, T_motor, 'r-', linewidth=2.5, marker='o', markersize=6, label='Moteur 1→2→3→4', zorder=3)
+        # CYCLE PRINCIPAL (bleu): 1→2→3
+        if all(get_s(i) and get_T(i) for i in [1, 2, 3]):
+            s_main = [get_s(i) for i in [1, 2, 3]]
+            T_main = [get_T(i) for i in [1, 2, 3]]
+            self.ax_ts.plot(s_main, T_main, 'b-', linewidth=2.5, marker='o', markersize=6, zorder=3)
         
-        # Cycle Frigorifique BP: 1 → 6 (détente isenthalpique) → 5 (évaporation iso-P)
-        if all(get_s(i) and get_T(i) for i in [1, 6, 5]):
-            s_refrig = [get_s(1), get_s(6), get_s(5)]
-            T_refrig = [get_T(1), get_T(6), get_T(5)]
-            self.ax_ts.plot(s_refrig, T_refrig, 'b-', linewidth=2.5, marker='s', markersize=6, label='Frigo 1→6→5', zorder=3)
+        # CYCLE CHAUD (rouge): 1→7→8
+        if all(get_s(i) and get_T(i) for i in [1, 7, 8]):
+            s_hot = [get_s(i) for i in [1, 7, 8]]
+            T_hot = [get_T(i) for i in [1, 7, 8]]
+            self.ax_ts.plot(s_hot, T_hot, 'r-', linewidth=2.5, marker='o', markersize=6, zorder=3)
         
-        # Éjecteur: 4 (primaire) + 5 (secondaire) → 7 (mélange) → 8 (compression diffuseur)
-        if all(get_s(i) and get_T(i) for i in [4, 5, 7, 8]):
-            # Primaire 4 → 7
-            self.ax_ts.plot([get_s(4), get_s(7)], [get_T(4), get_T(7)], 'm--', linewidth=2, alpha=0.6, zorder=2)
-            # Secondaire 5 → 7
-            self.ax_ts.plot([get_s(5), get_s(7)], [get_T(5), get_T(7)], 'm--', linewidth=2, alpha=0.6, zorder=2)
-            # Diffuseur 7 → 8
-            self.ax_ts.plot([get_s(7), get_s(8)], [get_T(7), get_T(8)], 'm-', linewidth=2.5, marker='^', markersize=6, label='Éjecteur 4+5→7→8', zorder=3)
+        # ÉJECTEUR: 3→4, 8→4, 4→5
+        if all(get_s(i) and get_T(i) for i in [3, 4]):
+            self.ax_ts.plot([get_s(3), get_s(4)], [get_T(3), get_T(4)], 'c--', linewidth=2, alpha=0.6, zorder=2)
         
-        # Condensation: 8 → 1 (fermeture cycle)
-        if all(get_s(i) and get_T(i) for i in [8, 1]):
-            self.ax_ts.plot([get_s(8), get_s(1)], [get_T(8), get_T(1)], 'g-', linewidth=2.5, marker='d', markersize=6, label='Condensation 8→1', zorder=3)
+        if all(get_s(i) and get_T(i) for i in [8, 4]):
+            self.ax_ts.plot([get_s(8), get_s(4)], [get_T(8), get_T(4)], 'r--', linewidth=2, alpha=0.6, zorder=2)
         
-        # Annotations des états
-        for i, label in labels.items():
+        if all(get_s(i) and get_T(i) for i in [4, 5]):
+            self.ax_ts.plot([get_s(4), get_s(5)], [get_T(4), get_T(5)], 'm-', linewidth=2.5, marker='^', markersize=6, zorder=3)
+        
+        # 5→6 (condensation)
+        if all(get_s(i) and get_T(i) for i in [5, 6]):
+            self.ax_ts.plot([get_s(5), get_s(6)], [get_T(5), get_T(6)], 'g-', linewidth=2.5, marker='d', markersize=6, zorder=3)
+        
+        # 6→1 (bouclage)
+        if all(get_s(i) and get_T(i) for i in [6, 1]):
+            self.ax_ts.plot([get_s(6), get_s(1)], [get_T(6), get_T(1)], 'g--', linewidth=1.5, alpha=0.5, zorder=2)
+        
+        # Annotations: UNIQUEMENT LES NUMÉROS
+        for i in [1, 2, 3, 4, 5, 6, 7, 8]:
             s, T = get_s(i), get_T(i)
             if s and T:
-                self.ax_ts.annotate(label, (s, T), textcoords="offset points", 
-                                   xytext=(5, 5), fontsize=8, color='black', fontweight='bold',
-                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8, edgecolor='black'),
+                self.ax_ts.annotate(str(i), (s, T), textcoords="offset points", 
+                                   xytext=(6, 6), fontsize=11, color='black', fontweight='bold',
+                                   bbox=dict(boxstyle='circle,pad=0.3', facecolor='white', alpha=0.9, edgecolor='black', linewidth=1.5),
                                    zorder=5)
         
         self.ax_ts.grid(True, alpha=0.3, linestyle='--')
-        self.ax_ts.legend(loc='best', fontsize=9)
         self.canvas_ts.draw()
     
     def _draw_saturation_dome_ph(self, ax):
