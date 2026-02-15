@@ -478,14 +478,14 @@ class SystemDashboardView:
         x_valve, y_valve = components['valve']
         x_pump, y_pump = components['pump']
         
-        # Bifurcation point
-        bifur_x, bifur_y = x_cond, y_cond + box_h/2 + 20
-        self.canvas.create_text(bifur_x, bifur_y, text="1", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
-        
         # Line from condenser to bifurcation
+        bifur_x, bifur_y = x_cond, y_cond + box_h/2 + 20
         self.canvas.create_line(x_cond, y_cond+box_h/2, bifur_x, bifur_y, 
                                fill='black', width=2, tags='pipe')
+        
+        # État 1: sur le tuyau avant bifurcation
+        self.canvas.create_text(bifur_x + 15, bifur_y - 5, text="①", font=('Arial', 10, 'bold'), 
+                               fill='darkblue', tags='state_label')
         
         # 1→2: Détendeur (branch to right)
         mid_x_valve = (bifur_x + x_valve) / 2
@@ -494,23 +494,25 @@ class SystemDashboardView:
         self.canvas.create_line(mid_x_valve, bifur_y, x_valve, y_valve-20, 
                                fill='black', width=2, arrow=tk.LAST, tags='pipe')
         
-        # State 2: Sortie détendeur
-        self.canvas.create_text(x_valve, y_valve+25, text="2", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
-        
         # 2→3: Évaporateur
         x_evap, y_evap = components['evaporator']
         self.canvas.create_line(x_valve, y_valve+20, x_evap, y_evap-box_h/2, 
                                fill='orange', width=2, arrow=tk.LAST, tags='pipe')
         
-        # State 3: Sortie évaporateur
-        self.canvas.create_text(x_evap-box_w/2-15, y_evap, text="3", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
+        # État 2: sur le tuyau entre détendeur et évaporateur
+        self.canvas.create_text((x_valve + x_evap)/2 + 10, (y_valve+20 + y_evap-box_h/2)/2, 
+                               text="②", font=('Arial', 10, 'bold'), 
+                               fill='darkorange', tags='state_label')
         
         # 3→4: Aspiration secondaire vers éjecteur
         x_ej, y_ej = components['ejector']
         self.canvas.create_line(x_evap-box_w/2, y_evap, x_ej-40, y_ej+20, 
                                fill='cyan', width=2, arrow=tk.LAST, tags='pipe')
+        
+        # État 3: sur le tuyau entre évaporateur et éjecteur
+        self.canvas.create_text((x_evap-box_w/2 + x_ej-40)/2, (y_evap + y_ej+20)/2 - 10, 
+                               text="③", font=('Arial', 10, 'bold'), 
+                               fill='darkcyan', tags='state_label')
         
         # 1→7: Pompe (branch to left)
         mid_x_pump = (bifur_x + x_pump + 25) / 2
@@ -519,39 +521,42 @@ class SystemDashboardView:
         self.canvas.create_line(mid_x_pump, bifur_y, x_pump+25, y_pump, 
                                fill='black', width=2, arrow=tk.LAST, tags='pipe')
         
-        # State 7: Sortie pompe
-        x_gen, y_gen = components['generator']
-        self.canvas.create_text(x_pump, (y_pump+y_gen)/2, text="7", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
-        
         # 7→8: Chaudière
+        x_gen, y_gen = components['generator']
         self.canvas.create_line(x_pump, y_pump+25, x_gen, y_gen-box_h/2, 
                                fill='green', width=2, arrow=tk.LAST, tags='pipe')
         
-        # State 8: Sortie chaudière
-        self.canvas.create_text((x_gen+x_ej)/2-15, y_gen, text="8", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
+        # État 7: sur le tuyau entre pompe et chaudière
+        self.canvas.create_text((x_pump + x_gen)/2 - 15, (y_pump+25 + y_gen-box_h/2)/2, 
+                               text="⑦", font=('Arial', 10, 'bold'), 
+                               fill='darkgreen', tags='state_label')
         
         # 8→4: Tuyère primaire
         self.canvas.create_line(x_gen+box_w/2, y_gen, x_ej-40, y_ej, 
                                fill='red', width=3, arrow=tk.LAST, tags='pipe')
         
-        # State 4: Chambre de mélange (inside ejector)
-        self.canvas.create_text(x_ej-15, y_ej, text="4", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
+        # État 8: sur le tuyau entre chaudière et éjecteur
+        self.canvas.create_text((x_gen+box_w/2 + x_ej-40)/2, y_gen - 10, 
+                               text="⑧", font=('Arial', 10, 'bold'), 
+                               fill='darkred', tags='state_label')
         
-        # 4→5: Diffuseur
-        # State 5 is at ejector outlet
-        self.canvas.create_text(x_ej+35, y_ej, text="5", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
+        # État 4: Chambre de mélange (inside ejector)
+        self.canvas.create_text(x_ej-15, y_ej, text="④", font=('Arial', 10, 'bold'), 
+                               fill='blue', tags='state_label')
         
         # 5→6: Condenseur
         self.canvas.create_line(x_ej+30, y_ej, x_cond-box_w/2, y_cond, 
                                fill='purple', width=2, arrow=tk.LAST, tags='pipe')
         
-        # State 6: Sortie condenseur (retour = state 1)
-        self.canvas.create_text(x_cond-box_w/2-15, y_cond, text="6", font=('Arial', 9, 'bold'), 
-                               fill='black', tags='state_label')
+        # État 5: sur le tuyau à la sortie éjecteur
+        self.canvas.create_text((x_ej+30 + x_cond-box_w/2)/2 + 10, (y_ej + y_cond)/2 - 10, 
+                               text="⑤", font=('Arial', 10, 'bold'), 
+                               fill='purple', tags='state_label')
+        
+        # État 6: sur le tuyau avant entrée condenseur
+        self.canvas.create_text(x_cond-box_w/2 - 15, y_cond - 15, 
+                               text="⑥", font=('Arial', 10, 'bold'), 
+                               fill='darkgray', tags='state_label')
         
         # Add simplified legend (NUMBERS ONLY per user request)
         legend_x, legend_y = 10, h - 40
