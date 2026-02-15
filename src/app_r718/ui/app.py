@@ -94,16 +94,24 @@ class MainWindow:
         )
         btn_evaporator.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
         
+        # Condenser (available)
+        btn_condenser = ttk.Button(
+            parent,
+            text="♨️ Condenseur (Condenser)",
+            command=self._open_condenser,
+            **button_style,
+        )
+        btn_condenser.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+        
         # Future modules (disabled for now)
         future_modules = [
-            "♨️ Condenseur (Condenser)",
             "⚙️ Pompe (Pump)",
             "🔥 Générateur (Generator)",
             "🚀 Éjecteur (Ejector)",
             "🔄 Système Complet (Full System)",
         ]
         
-        for i, module_name in enumerate(future_modules, start=2):
+        for i, module_name in enumerate(future_modules, start=3):
             btn = ttk.Button(
                 parent,
                 text=module_name,
@@ -128,6 +136,13 @@ class MainWindow:
         from app_r718.modules.evaporator.view import EvaporatorTkView
         
         EvaporatorTkView.open_window(self.root)
+    
+    def _open_condenser(self):
+        """Open the Condenser simulation window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.condenser.view import CondenserTkView
+        
+        CondenserTkView.open_window(self.root)
     
     def run(self):
         """Start the application main loop."""
