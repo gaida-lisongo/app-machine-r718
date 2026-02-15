@@ -1,5 +1,0 @@
-CoolProp
-scipy
-matplotlib
-pandas
-pytest
