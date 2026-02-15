@@ -121,13 +121,21 @@ class MainWindow:
         )
         btn_generator.grid(row=4, column=0, padx=10, pady=5, sticky="ew")
         
+        # Ejector (available)
+        btn_ejector = ttk.Button(
+            parent,
+            text="🚀 Éjecteur (Ejector)",
+            command=self._open_ejector,
+            **button_style,
+        )
+        btn_ejector.grid(row=5, column=0, padx=10, pady=5, sticky="ew")
+        
         # Future modules (disabled for now)
         future_modules = [
-            "🚀 Éjecteur (Ejector)",
             "🔄 Système Complet (Full System)",
         ]
         
-        for i, module_name in enumerate(future_modules, start=5):
+        for i, module_name in enumerate(future_modules, start=6):
             btn = ttk.Button(
                 parent,
                 text=module_name,
@@ -173,6 +181,13 @@ class MainWindow:
         from app_r718.modules.generator.view import GeneratorTkView
         
         GeneratorTkView.open_window(self.root)
+    
+    def _open_ejector(self):
+        """Open the Ejector simulation window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.ejector.view import EjectorTkView
+        
+        EjectorTkView.open_window(self.root)
     
     def run(self):
         """Start the application main loop."""
