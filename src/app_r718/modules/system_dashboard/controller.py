@@ -32,6 +32,7 @@ class SystemCycleController:
             T_evap=params.get('T_evap', 283.15),
             T_cond=params.get('T_cond', 308.15),
             m_dot_p=params.get('m_dot_p', 0.020),
+            Q_evap_target=params.get('Q_evap_target', None),  # If set, inverse dimensioning
             eta_pump=params.get('eta_pump', 0.7),
             eta_nozzle=params.get('eta_nozzle', 0.85),
             eta_diffuser=params.get('eta_diffuser', 0.85),

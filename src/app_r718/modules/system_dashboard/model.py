@@ -72,6 +72,9 @@ class SystemCycleModel:
         T_cond: float = 308.15,     # Condenser temperature [K]
         m_dot_p: float = 0.020,     # Primary mass flow [kg/s]
         
+        # Dimensioning mode (inverse)
+        Q_evap_target: float = None,  # Target cooling power [kW] - if set, calculates m_dot_p
+        
         # Efficiencies
         eta_pump: float = 0.7,
         eta_nozzle: float = 0.85,
@@ -101,9 +104,122 @@ class SystemCycleModel:
         """
         Solve complete cycle with given parameters.
         
+        If Q_evap_target is provided, performs inverse dimensioning to find m_dot_p.
+        
         Returns:
             CycleResult object with states, metrics, flags, and notes
         """
+        # If inverse dimensioning mode
+        if Q_evap_target is not None and Q_evap_target > 0:
+            return self._solve_cycle_inverse(
+                Q_evap_target=Q_evap_target,
+                T_gen=T_gen,
+                T_evap=T_evap,
+                T_cond=T_cond,
+                eta_pump=eta_pump,
+                eta_nozzle=eta_nozzle,
+                eta_diffuser=eta_diffuser,
+                eta_mixing=eta_mixing,
+                use_ejector_v2=use_ejector_v2,
+            )
+        
+        # Direct mode (forward calculation)
+        return self._solve_cycle_direct(
+            T_gen=T_gen,
+            T_evap=T_evap,
+            T_cond=T_cond,
+            m_dot_p=m_dot_p,
+            eta_pump=eta_pump,
+            eta_nozzle=eta_nozzle,
+            eta_diffuser=eta_diffuser,
+            eta_mixing=eta_mixing,
+            use_ejector_v2=use_ejector_v2,
+        )
+    
+    def _solve_cycle_inverse(
+        self,
+        Q_evap_target: float,  # kW
+        T_gen: float,
+        T_evap: float,
+        T_cond: float,
+        eta_pump: float,
+        eta_nozzle: float,
+        eta_diffuser: float,
+        eta_mixing: float,
+        use_ejector_v2: bool,
+    ) -> CycleResult:
+        """
+        Inverse dimensioning: find m_dot_p to achieve target Q_evap.
+        
+        Uses iterative method to converge on correct mass flow rate.
+        """
+        # Convert kW to W
+        Q_evap_target_W = Q_evap_target * 1000.0
+        
+        # Initial guess based on typical enthalpy difference
+        # Q_evap = m_dot_s * (h_evap_out - h_evap_in)
+        # Estimate: Δh ≈ 2500 kJ/kg for water evaporation at 10°C
+        # m_dot_s ≈ Q / Δh ≈ 12000 / 2500000 ≈ 0.005 kg/s
+        # With μ ≈ 1.0, m_dot_p ≈ m_dot_s ≈ 0.005
+        m_dot_p_guess = Q_evap_target_W / 2500000.0
+        
+        # Iterative solver
+        max_iterations = 20
+        tolerance = 0.01  # 1% tolerance on Q_evap
+        
+        for iteration in range(max_iterations):
+            # Solve cycle with current guess
+            result = self._solve_cycle_direct(
+                T_gen=T_gen,
+                T_evap=T_evap,
+                T_cond=T_cond,
+                m_dot_p=m_dot_p_guess,
+                eta_pump=eta_pump,
+                eta_nozzle=eta_nozzle,
+                eta_diffuser=eta_diffuser,
+                eta_mixing=eta_mixing,
+                use_ejector_v2=use_ejector_v2,
+            )
+            
+            # Check convergence
+            Q_evap_actual_kW = result.metrics.get('Q_evap', 0.0)
+            Q_evap_actual_W = Q_evap_actual_kW * 1000.0
+            
+            error_relative = abs(Q_evap_actual_W - Q_evap_target_W) / Q_evap_target_W
+            
+            if error_relative < tolerance:
+                # Converged!
+                result.notes = f"Dimensionnement inverse convergé en {iteration+1} itérations (erreur: {error_relative*100:.2f}%)"
+                return result
+            
+            # Update guess using proportional adjustment
+            # m_dot_new = m_dot_old * (Q_target / Q_actual)
+            if Q_evap_actual_W > 0:
+                m_dot_p_guess = m_dot_p_guess * (Q_evap_target_W / Q_evap_actual_W)
+            else:
+                # If no cooling power, increase flow
+                m_dot_p_guess *= 1.5
+            
+            # Safety bounds
+            m_dot_p_guess = max(0.001, min(0.1, m_dot_p_guess))
+        
+        # Did not converge
+        result.flags['dimensioning_not_converged'] = True
+        result.notes = f"Dimensionnement inverse n'a pas convergé après {max_iterations} itérations. Q_evap = {Q_evap_actual_kW:.2f} kW (cible: {Q_evap_target:.2f} kW)"
+        return result
+    
+    def _solve_cycle_direct(
+        self,
+        T_gen: float,
+        T_evap: float,
+        T_cond: float,
+        m_dot_p: float,
+        eta_pump: float,
+        eta_nozzle: float,
+        eta_diffuser: float,
+        eta_mixing: float,
+        use_ejector_v2: bool,
+    ) -> CycleResult:
         result = CycleResult()
         notes = []
         
