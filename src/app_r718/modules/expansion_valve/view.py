@@ -141,8 +141,51 @@ class ExpansionValveTkView:
     Tkinter-based GUI view for expansion valve simulation.
     
     Provides interactive interface with input fields, simulation button,
-    results display, and P-h diagram visualization.
+    results display, and P-h/P-s diagram visualization.
     """
+    
+    @staticmethod
+    def _compute_saturation_curve(P_min: float = 500.0, P_max: float = 2e6, n_points: int = 200):
+        """
+        Compute saturation curves for P-h and P-s diagrams.
+        
+        Args:
+            P_min: Minimum pressure [Pa]
+            P_max: Maximum pressure [Pa]
+            n_points: Number of points
+            
+        Returns:
+            Tuple of (P_array, hl_array, hv_array, sl_array, sv_array)
+        """
+        import numpy as np
+        from app_r718.core.props_service import get_props_service
+        
+        props = get_props_service()
+        
+        # Log-spaced pressure array
+        P_sat = np.logspace(np.log10(P_min), np.log10(P_max), n_points)
+        
+        hl_array = []
+        hv_array = []
+        sl_array = []
+        sv_array = []
+        
+        for P in P_sat:
+            try:
+                hl = props.hl_P(P)
+                hv = props.hv_P(P)
+                sl = props.sl_P(P)
+                sv = props.sv_P(P)
+                
+                hl_array.append(hl)
+                hv_array.append(hv)
+                sl_array.append(sl)
+                sv_array.append(sv)
+            except:
+                # Skip points where saturation calculation fails
+                continue
+        
+        return P_sat[:len(hl_array)], np.array(hl_array), np.array(hv_array), np.array(sl_array), np.array(sv_array)
     
     @staticmethod
     def open_window(parent):
@@ -355,53 +398,144 @@ class ExpansionValveTkView:
             results_text.insert("1.0", "\n".join(output))
         
         # ========== BOTTOM PANEL: Plot ==========
-        plot_frame = ttk.LabelFrame(window, text="Diagramme P-h", padding=10)
+        plot_frame = ttk.LabelFrame(window, text="Diagrammes thermodynamiques P-h et P-s", padding=10)
         plot_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=5, pady=5)
         
-        # Create matplotlib figure
-        fig = Figure(figsize=(9, 4), dpi=100)
-        ax = fig.add_subplot(111)
+        # Create matplotlib figure with two subplots
+        fig = Figure(figsize=(14, 5), dpi=100)
+        ax_ph = fig.add_subplot(121)  # P-h diagram (left)
+        ax_ps = fig.add_subplot(122)  # P-s diagram (right)
         
         canvas = FigureCanvasTkAgg(fig, master=plot_frame)
         canvas.get_tk_widget().pack(fill="both", expand=True)
         
         def plot_ph_diagram(result: ExpansionValveResult, state1: ThermoState):
-            """Plot P-h diagram showing expansion process."""
-            ax.clear()
+            """Plot P-h and P-s diagrams showing expansion process with saturation curves."""
+            import numpy as np
             
-            # Extract data
+            # Clear both axes
+            ax_ph.clear()
+            ax_ps.clear()
+            
+            # Compute saturation curves
+            P_sat, hl, hv, sl, sv = ExpansionValveTkView._compute_saturation_curve()
+            
+            # Convert to kJ/kg and kJ/kg/K
+            hl_kJ = hl / 1e3
+            hv_kJ = hv / 1e3
+            sl_kJ = sl / 1e3
+            sv_kJ = sv / 1e3
+            
+            # Extract state data
             h1 = state1.h / 1e3  # kJ/kg
             P1 = state1.P
+            s1 = state1.s / 1e3  # kJ/kg/K
+            
             h2 = result.state2.h / 1e3  # kJ/kg
             P2 = result.state2.P
+            s2 = result.state2.s / 1e3  # kJ/kg/K
             
-            # Plot states
-            ax.plot(h1, P1, 'ro', markersize=10, label='État 1 (entrée)', zorder=3)
-            ax.plot(h2, P2, 'bs', markersize=10, label='État 2 (sortie)', zorder=3)
+            # ========== P-h DIAGRAM ==========
+            
+            # Plot saturation dome
+            ax_ph.plot(hl_kJ, P_sat, 'b-', linewidth=2, label='Liquide saturé', zorder=2)
+            ax_ph.plot(hv_kJ, P_sat, 'r-', linewidth=2, label='Vapeur saturée', zorder=2)
+            
+            # Plot iso-quality lines
+            for x in [0.1, 0.3, 0.5, 0.7, 0.9]:
+                h_x = hl + x * (hv - hl)
+                h_x_kJ = h_x / 1e3
+                ax_ph.plot(h_x_kJ, P_sat, 'gray', linewidth=0.5, alpha=0.5, linestyle='--', zorder=1)
+                
+                # Add label for x=0.5 only
+                if x == 0.5:
+                    mid_idx = len(h_x_kJ) // 2
+                    ax_ph.text(h_x_kJ[mid_idx], P_sat[mid_idx], f'x={x}', 
+                              fontsize=8, color='gray', rotation=75, va='bottom')
+            
+            # Plot process states
+            ax_ph.plot(h1, P1, 'ro', markersize=12, label='État 1 (entrée)', zorder=4)
+            ax_ph.plot(h2, P2, 'bs', markersize=12, label='État 2 (sortie)', zorder=4)
             
             # Plot process line (isenthalpic: vertical line in P-h)
-            ax.plot([h1, h2], [P1, P2], 'g--', linewidth=2, label='Détente (1→2)', zorder=2)
+            ax_ph.plot([h1, h2], [P1, P2], 'g-', linewidth=2.5, label='Détente isenthalpique', zorder=3)
             
-            # Add arrows
-            ax.annotate('', xy=(h2, P2), xytext=(h1, P1),
-                       arrowprops=dict(arrowstyle='->', color='green', lw=2))
+            # Add arrow
+            mid_h = (h1 + h2) / 2
+            mid_P = np.sqrt(P1 * P2)  # Geometric mean for log scale
+            ax_ph.annotate('', xy=(h2, P2), xytext=(h1, P1),
+                          arrowprops=dict(arrowstyle='->', color='green', lw=2.5))
             
-            # Add labels
-            ax.text(h1, P1, '  1', fontsize=12, color='red', verticalalignment='bottom')
-            ax.text(h2, P2, '  2', fontsize=12, color='blue', verticalalignment='top')
+            # Add "Flash vaporization" annotation
+            ax_ph.annotate('Flash vaporization', xy=(mid_h, mid_P), xytext=(mid_h + 100, mid_P * 2),
+                          fontsize=9, color='darkgreen', fontweight='bold',
+                          arrowprops=dict(arrowstyle='->', color='darkgreen', lw=1.5),
+                          bbox=dict(boxstyle='round,pad=0.5', facecolor='lightyellow', alpha=0.8))
             
-            # Formatting
-            ax.set_xlabel('Enthalpie spécifique h [kJ/kg]', fontsize=11)
-            ax.set_ylabel('Pression P [Pa]', fontsize=11)
-            ax.set_title('Détendeur : Transformation isoenthalpique (1→2)', fontsize=12, fontweight='bold')
-            ax.set_yscale('log')
-            ax.grid(True, alpha=0.3, which='both')
-            ax.legend(loc='best')
+            # Add state labels
+            ax_ph.text(h1, P1 * 1.3, '1', fontsize=13, color='red', fontweight='bold',
+                      ha='center', va='bottom')
+            ax_ph.text(h2, P2 / 1.3, '2', fontsize=13, color='blue', fontweight='bold',
+                      ha='center', va='top')
             
-            # Adjust margins
-            h_margin = abs(h2 - h1) * 0.2 if abs(h2 - h1) > 0.1 else 50
-            ax.set_xlim(min(h1, h2) - h_margin, max(h1, h2) + h_margin)
+            # Formatting P-h
+            ax_ph.set_xlabel('Enthalpie spécifique h [kJ/kg]', fontsize=11, fontweight='bold')
+            ax_ph.set_ylabel('Pression P [Pa]', fontsize=11, fontweight='bold')
+            ax_ph.set_title('Diagramme Pression-Enthalpie (P-h)', fontsize=12, fontweight='bold')
+            ax_ph.set_yscale('log')
+            ax_ph.grid(True, alpha=0.3, which='both', linestyle=':')
+            ax_ph.legend(loc='best', fontsize=9, framealpha=0.9)
             
+            # Set reasonable limits
+            h_margin = max(50, abs(h2 - h1) * 0.3)
+            ax_ph.set_xlim(min(hl_kJ.min(), h1, h2) - h_margin, 
+                          max(hv_kJ.max(), h1, h2) + h_margin)
+            ax_ph.set_ylim(P_sat.min() * 0.8, P_sat.max() * 1.2)
+            
+            # ========== P-s DIAGRAM ==========
+            
+            # Plot saturation dome
+            ax_ps.plot(sl_kJ, P_sat, 'b-', linewidth=2, label='Liquide saturé', zorder=2)
+            ax_ps.plot(sv_kJ, P_sat, 'r-', linewidth=2, label='Vapeur saturée', zorder=2)
+            
+            # Plot iso-quality lines
+            for x in [0.1, 0.3, 0.5, 0.7, 0.9]:
+                s_x = sl + x * (sv - sl)
+                s_x_kJ = s_x / 1e3
+                ax_ps.plot(s_x_kJ, P_sat, 'gray', linewidth=0.5, alpha=0.5, linestyle='--', zorder=1)
+            
+            # Plot process states
+            ax_ps.plot(s1, P1, 'ro', markersize=12, label='État 1 (entrée)', zorder=4)
+            ax_ps.plot(s2, P2, 'bs', markersize=12, label='État 2 (sortie)', zorder=4)
+            
+            # Plot process line
+            ax_ps.plot([s1, s2], [P1, P2], 'g-', linewidth=2.5, label='Détente', zorder=3)
+            
+            # Add arrow
+            ax_ps.annotate('', xy=(s2, P2), xytext=(s1, P1),
+                          arrowprops=dict(arrowstyle='->', color='green', lw=2.5))
+            
+            # Add state labels
+            ax_ps.text(s1, P1 * 1.3, '1', fontsize=13, color='red', fontweight='bold',
+                      ha='center', va='bottom')
+            ax_ps.text(s2, P2 / 1.3, '2', fontsize=13, color='blue', fontweight='bold',
+                      ha='center', va='top')
+            
+            # Formatting P-s
+            ax_ps.set_xlabel('Entropie spécifique s [kJ/kg/K]', fontsize=11, fontweight='bold')
+            ax_ps.set_ylabel('Pression P [Pa]', fontsize=11, fontweight='bold')
+            ax_ps.set_title('Diagramme Pression-Entropie (P-s)', fontsize=12, fontweight='bold')
+            ax_ps.set_yscale('log')
+            ax_ps.grid(True, alpha=0.3, which='both', linestyle=':')
+            ax_ps.legend(loc='best', fontsize=9, framealpha=0.9)
+            
+            # Set reasonable limits
+            s_margin = max(0.1, abs(s2 - s1) * 0.3)
+            ax_ps.set_xlim(min(sl_kJ.min(), s1, s2) - s_margin,
+                          max(sv_kJ.max(), s1, s2) + s_margin)
+            ax_ps.set_ylim(P_sat.min() * 0.8, P_sat.max() * 1.2)
+            
+            # Tight layout and draw
             fig.tight_layout()
             canvas.draw()
         
