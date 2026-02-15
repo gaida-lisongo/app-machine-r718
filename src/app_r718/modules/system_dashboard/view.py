@@ -74,7 +74,7 @@ class SystemDashboardView:
         self._build_diagrams_section(main_frame)
     
     def _build_metrics_section(self, parent):
-        """Build metrics cards section (top)."""
+        """Build metrics cards section (top) - 4 cards with grouped metrics."""
         metrics_frame = ttk.Frame(parent, relief=tk.RIDGE, borderwidth=2)
         metrics_frame.grid(row=0, column=0, sticky='ew', padx=10, pady=10)
         
@@ -85,44 +85,82 @@ class SystemDashboardView:
         # Card style
         card_style = {'relief': tk.RAISED, 'borderwidth': 2, 'padding': 10}
         
-        # Card 1: COP
-        card_cop = ttk.LabelFrame(metrics_frame, text="COP Système", **card_style)
-        card_cop.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
-        self.lbl_cop_value = ttk.Label(card_cop, text="--", font=('Arial', 24, 'bold'))
+        # ===== CARTE 1: Performances (COP, Q_evap, Q_gen) =====
+        card_perf = ttk.LabelFrame(metrics_frame, text="⚡ Performances", **card_style)
+        card_perf.grid(row=0, column=0, padx=5, pady=5, sticky='nsew')
+        
+        # COP
+        ttk.Label(card_perf, text="COP:", font=('Arial', 10)).pack()
+        self.lbl_cop_value = ttk.Label(card_perf, text="--", font=('Arial', 18, 'bold'), foreground='darkblue')
         self.lbl_cop_value.pack()
-        self.lbl_cop_status = ttk.Label(card_cop, text="En attente", foreground='gray')
-        self.lbl_cop_status.pack()
         
-        # Card 2: Q_evap
-        card_qevap = ttk.LabelFrame(metrics_frame, text="Puissance Frigorifique", **card_style)
-        card_qevap.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
-        self.lbl_qevap_value = ttk.Label(card_qevap, text="-- kW", font=('Arial', 24, 'bold'))
+        # Q_evap
+        ttk.Label(card_perf, text="Q_evap:", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_qevap_value = ttk.Label(card_perf, text="-- kW", font=('Arial', 14, 'bold'), foreground='blue')
         self.lbl_qevap_value.pack()
-        self.lbl_qevap_status = ttk.Label(card_qevap, text="Q_evap", foreground='blue')
-        self.lbl_qevap_status.pack()
         
-        # Card 3: Q_gen
-        card_qgen = ttk.LabelFrame(metrics_frame, text="Puissance Thermique", **card_style)
-        card_qgen.grid(row=0, column=2, padx=5, pady=5, sticky='nsew')
-        self.lbl_qgen_value = ttk.Label(card_qgen, text="-- kW", font=('Arial', 24, 'bold'))
+        # Q_gen
+        ttk.Label(card_perf, text="Q_gen:", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_qgen_value = ttk.Label(card_perf, text="-- kW", font=('Arial', 14, 'bold'), foreground='red')
         self.lbl_qgen_value.pack()
-        self.lbl_qgen_status = ttk.Label(card_qgen, text="Q_gen", foreground='red')
-        self.lbl_qgen_status.pack()
         
-        # Card 4: mu
-        card_mu = ttk.LabelFrame(metrics_frame, text="Taux Entraînement", **card_style)
-        card_mu.grid(row=0, column=3, padx=5, pady=5, sticky='nsew')
-        self.lbl_mu_value = ttk.Label(card_mu, text="--", font=('Arial', 24, 'bold'))
+        # ===== CARTE 2: Énergies (mu, Q_cond, W_pump) =====
+        card_energy = ttk.LabelFrame(metrics_frame, text="🔥 Énergies", **card_style)
+        card_energy.grid(row=0, column=1, padx=5, pady=5, sticky='nsew')
+        
+        # mu
+        ttk.Label(card_energy, text="μ (ṁ_s/ṁ_p):", font=('Arial', 10)).pack()
+        self.lbl_mu_value = ttk.Label(card_energy, text="--", font=('Arial', 18, 'bold'), foreground='green')
         self.lbl_mu_value.pack()
-        self.lbl_mu_status = ttk.Label(card_mu, text="μ = ṁ_s / ṁ_p", foreground='green')
-        self.lbl_mu_status.pack()
         
-        # Global status badge
-        status_frame = ttk.Frame(metrics_frame)
-        status_frame.grid(row=1, column=0, columnspan=4, pady=(5, 0))
-        ttk.Label(status_frame, text="État global:").pack(side=tk.LEFT, padx=5)
-        self.lbl_global_status = ttk.Label(status_frame, text="● En attente", foreground='gray', font=('Arial', 10, 'bold'))
-        self.lbl_global_status.pack(side=tk.LEFT)
+        # Q_cond
+        ttk.Label(card_energy, text="Q_cond:", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_qcond_value = ttk.Label(card_energy, text="-- kW", font=('Arial', 14, 'bold'), foreground='orange')
+        self.lbl_qcond_value.pack()
+        
+        # W_pump
+        ttk.Label(card_energy, text="W_pump:", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_wpump_value = ttk.Label(card_energy, text="-- kW", font=('Arial', 14, 'bold'), foreground='purple')
+        self.lbl_wpump_value.pack()
+        
+        # ===== CARTE 3: Débits (m_dot_total, m_dot_p, m_dot_s) =====
+        card_flow = ttk.LabelFrame(metrics_frame, text="💧 Débits Massiques", **card_style)
+        card_flow.grid(row=0, column=2, padx=5, pady=5, sticky='nsew')
+        
+        # m_dot_total
+        ttk.Label(card_flow, text="ṁ_total:", font=('Arial', 10)).pack()
+        self.lbl_mdot_total_value = ttk.Label(card_flow, text="-- kg/s", font=('Arial', 16, 'bold'), foreground='black')
+        self.lbl_mdot_total_value.pack()
+        
+        # m_dot_p
+        ttk.Label(card_flow, text="ṁ_p (primaire):", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_mdot_p_value = ttk.Label(card_flow, text="-- kg/s", font=('Arial', 12))
+        self.lbl_mdot_p_value.pack()
+        
+        # m_dot_s
+        ttk.Label(card_flow, text="ṁ_s (secondaire):", font=('Arial', 10)).pack(pady=(5,0))
+        self.lbl_mdot_s_value = ttk.Label(card_flow, text="-- kg/s", font=('Arial', 12))
+        self.lbl_mdot_s_value.pack()
+        
+        # ===== CARTE 4: État Système & Flags =====
+        card_flags = ttk.LabelFrame(metrics_frame, text="🚦 État Système", **card_style)
+        card_flags.grid(row=0, column=3, padx=5, pady=5, sticky='nsew')
+        
+        # État global
+        ttk.Label(card_flags, text="État global:", font=('Arial', 10)).pack()
+        self.lbl_global_status = ttk.Label(card_flags, text="● En attente", font=('Arial', 12, 'bold'), foreground='gray')
+        self.lbl_global_status.pack(pady=(0,10))
+        
+        # Flags (scrollable text)
+        flag_subframe = ttk.Frame(card_flags)
+        flag_subframe.pack(fill=tk.BOTH, expand=True)
+        self.txt_flags = tk.Text(flag_subframe, height=8, width=25, font=('Courier', 8), wrap=tk.WORD, relief=tk.SUNKEN, borderwidth=1)
+        self.txt_flags.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar_flags = ttk.Scrollbar(flag_subframe, orient=tk.VERTICAL, command=self.txt_flags.yview)
+        scrollbar_flags.pack(side=tk.RIGHT, fill=tk.Y)
+        self.txt_flags.config(yscrollcommand=scrollbar_flags.set)
+        self.txt_flags.insert('1.0', 'Aucun diagnostic\n')
+        self.txt_flags.config(state=tk.DISABLED)
     
     def _build_middle_section(self, parent):
         """Build canvas + parameters section (middle)."""
@@ -156,157 +194,182 @@ class SystemDashboardView:
         self._build_parameters_panel(middle_frame)
     
     def _build_parameters_panel(self, parent):
-        """Build simplified parameters control panel (right side of middle section)."""
-        params_frame = ttk.LabelFrame(parent, text="Dimensionnement Système", relief=tk.RIDGE, borderwidth=2)
-        params_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 0))
+        """Build parameters control panel with 2 columns layout."""
+        params_container = ttk.LabelFrame(parent, text="🎛️ Contrôle Système", relief=tk.RIDGE, borderwidth=2, padding=10)
+        params_container.grid(row=0, column=1, sticky='nsew', padx=(5, 0))
         
-        # Main container (no scroll needed with simplified UI)
-        main_container = ttk.Frame(params_frame, padding=10)
-        main_container.pack(fill=tk.BOTH, expand=True)
+        # 2 columns layout
+        params_container.columnconfigure(0, weight=1)
+        params_container.columnconfigure(1, weight=1)
+        params_container.rowconfigure(0, weight=1)
         
         # Store parameter widgets
         self.param_widgets = {}
         
-        # ===== TITLE =====
-        title_lbl = ttk.Label(
-            main_container, 
-            text="🎛 PARAMÈTRES UTILISATEUR", 
-            font=('Arial', 11, 'bold'),
-            foreground='#00539F'
-        )
-        title_lbl.pack(pady=(0, 10))
+        # ===== COLONNE GAUCHE: PARAMÈTRES D'ENTRÉE =====
+        frame_inputs = ttk.Frame(params_container, padding=5)
+        frame_inputs.grid(row=0, column=0, sticky='nsew', padx=(0, 5))
         
-        # ===== ENTRÉE 1: Puissance frigorifique cible =====
-        self._add_param_block(main_container, "Dimensionnement")
+        ttk.Label(frame_inputs, text="📋 PARAMÈTRES D'ENTRÉE", font=('Arial', 10, 'bold'), foreground='darkblue').pack(anchor='w', pady=(0,10))
         
-        frame_q = ttk.LabelFrame(main_container, text="Puissance Frigorifique Cible", padding=10)
-        frame_q.pack(fill='x', pady=5)
-        
+        # Q_evap_target
+        ttk.Label(frame_inputs, text="Puiss. Frigorifique Cible:", font=('Arial', 9, 'bold')).pack(anchor='w')
         var_q = tk.DoubleVar(value=12.0)
         self.param_widgets['Q_evap_target'] = var_q
         
-        # Value display
-        lbl_q_val = ttk.Label(frame_q, textvariable=var_q, font=('Arial', 20, 'bold'), foreground='blue')
-        lbl_q_val.pack()
-        ttk.Label(frame_q, text="kW", font=('Arial', 10)).pack()
+        q_display_frame = ttk.Frame(frame_inputs)
+        q_display_frame.pack(fill='x', pady=2)
+        lbl_q_val = ttk.Label(q_display_frame, textvariable=var_q, font=('Arial', 16, 'bold'), foreground='blue')
+        lbl_q_val.pack(side=tk.LEFT)
+        ttk.Label(q_display_frame, text=" kW", font=('Arial', 10)).pack(side=tk.LEFT)
         
-        # Slider
-        slider_q = ttk.Scale(frame_q, from_=0, to=120, variable=var_q, orient=tk.HORIZONTAL)
-        slider_q.pack(fill='x', pady=5)
+        slider_q = ttk.Scale(frame_inputs, from_=0, to=120, variable=var_q, orient=tk.HORIZONTAL)
+        slider_q.pack(fill='x', pady=2)
         
-        # Entry
-        entry_frame = ttk.Frame(frame_q)
-        entry_frame.pack()
-        ttk.Label(entry_frame, text="Valeur exacte:").pack(side=tk.LEFT, padx=(0, 5))
-        entry_q = ttk.Entry(entry_frame, textvariable=var_q, width=10)
-        entry_q.pack(side=tk.LEFT)
-        ttk.Label(entry_frame, text="kW").pack(side=tk.LEFT, padx=(5, 0))
+        q_entry_frame = ttk.Frame(frame_inputs)
+        q_entry_frame.pack(fill='x', pady=2)
+        ttk.Entry(q_entry_frame, textvariable=var_q, width=8).pack(side=tk.LEFT)
+        ttk.Label(q_entry_frame, text=" kW").pack(side=tk.LEFT)
         
-        # ===== ENTRÉE 2: Température évaporation =====
-        frame_tevap = ttk.LabelFrame(main_container, text="Température Évaporation", padding=10)
-        frame_tevap.pack(fill='x', pady=5)
+        ttk.Separator(frame_inputs, orient=tk.HORIZONTAL).pack(fill='x', pady=8)
         
+        # T_evap
+        ttk.Label(frame_inputs, text="Temp. Évaporation:", font=('Arial', 9, 'bold')).pack(anchor='w')
         var_tevap = tk.DoubleVar(value=10.0)
         self.param_widgets['T_evap'] = var_tevap
         
-        # Value display
-        lbl_tevap_val = ttk.Label(frame_tevap, textvariable=var_tevap, font=('Arial', 20, 'bold'), foreground='cyan')
-        lbl_tevap_val.pack()
-        ttk.Label(frame_tevap, text="°C", font=('Arial', 10)).pack()
+        tevap_display_frame = ttk.Frame(frame_inputs)
+        tevap_display_frame.pack(fill='x', pady=2)
+        lbl_tevap_val = ttk.Label(tevap_display_frame, textvariable=var_tevap, font=('Arial', 14, 'bold'), foreground='cyan')
+        lbl_tevap_val.pack(side=tk.LEFT)
+        ttk.Label(tevap_display_frame, text=" °C", font=('Arial', 10)).pack(side=tk.LEFT)
         
-        # Slider
-        slider_tevap = ttk.Scale(frame_tevap, from_=-5, to=20, variable=var_tevap, orient=tk.HORIZONTAL)
-        slider_tevap.pack(fill='x', pady=5)
+        slider_tevap = ttk.Scale(frame_inputs, from_=-5, to=20, variable=var_tevap, orient=tk.HORIZONTAL)
+        slider_tevap.pack(fill='x', pady=2)
         
-        # Entry
-        entry_frame2 = ttk.Frame(frame_tevap)
-        entry_frame2.pack()
-        ttk.Label(entry_frame2, text="Valeur exacte:").pack(side=tk.LEFT, padx=(0, 5))
-        entry_tevap = ttk.Entry(entry_frame2, textvariable=var_tevap, width=10)
-        entry_tevap.pack(side=tk.LEFT)
-        ttk.Label(entry_frame2, text="°C").pack(side=tk.LEFT, padx=(5, 0))
+        tevap_entry_frame = ttk.Frame(frame_inputs)
+        tevap_entry_frame.pack(fill='x', pady=2)
+        ttk.Entry(tevap_entry_frame, textvariable=var_tevap, width=8).pack(side=tk.LEFT)
+        ttk.Label(tevap_entry_frame, text=" °C").pack(side=tk.LEFT)
         
-        # ===== BOUTON PRINCIPAL =====
-        ttk.Separator(main_container, orient='horizontal').pack(fill='x', pady=15)
+        ttk.Separator(frame_inputs, orient=tk.HORIZONTAL).pack(fill='x', pady=8)
         
+        # T_cond
+        ttk.Label(frame_inputs, text="Temp. Condensation:", font=('Arial', 9, 'bold')).pack(anchor='w')
+        var_tcond = tk.DoubleVar(value=35.0)
+        self.param_widgets['T_cond'] = var_tcond
+        
+        tcond_frame = ttk.Frame(frame_inputs)
+        tcond_frame.pack(fill='x', pady=2)
+        ttk.Entry(tcond_frame, textvariable=var_tcond, width=8).pack(side=tk.LEFT)
+        ttk.Label(tcond_frame, text=" °C").pack(side=tk.LEFT)
+        slider_tcond = ttk.Scale(frame_inputs, from_=25, to=50, variable=var_tcond, orient=tk.HORIZONTAL)
+        slider_tcond.pack(fill='x', pady=2)
+        
+        # T_gen
+        ttk.Label(frame_inputs, text="Temp. Générateur:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(5,0))
+        var_tgen = tk.DoubleVar(value=100.0)
+        self.param_widgets['T_gen'] = var_tgen
+        
+        tgen_frame = ttk.Frame(frame_inputs)
+        tgen_frame.pack(fill='x', pady=2)
+        ttk.Entry(tgen_frame, textvariable=var_tgen, width=8).pack(side=tk.LEFT)
+        ttk.Label(tgen_frame, text=" °C").pack(side=tk.LEFT)
+        slider_tgen = ttk.Scale(frame_inputs, from_=80, to=160, variable=var_tgen, orient=tk.HORIZONTAL)
+        slider_tgen.pack(fill='x', pady=2)
+        
+        # ===== COLONNE DROITE: OPTIONS & RENDEMENTS =====
+        frame_options = ttk.Frame(params_container, padding=5)
+        frame_options.grid(row=0, column=1, sticky='nsew', padx=(5, 0))
+        
+        ttk.Label(frame_options, text="⚙️ OPTIONS", font=('Arial', 10, 'bold'), foreground='darkgreen').pack(anchor='w', pady=(0,10))
+        
+        # ===== BOUTON PRINCIPAL (EN HAUT) =====
         btn_simulate = ttk.Button(
-            main_container, 
-            text="🚀 DIMENSIONNER / SIMULER", 
-            command=self._run_simulation,
-            style='Accent.TButton'
+            frame_options, 
+            text="🚀 DIMENSIONNER", 
+            command=self._run_simulation
         )
-        btn_simulate.pack(fill='x', pady=5)
+        btn_simulate.pack(fill='x', pady=(0, 15))
         
-        # ===== PARAMÈTRES AVANCÉS (REPLIABLE) =====
-        ttk.Separator(main_container, orient='horizontal').pack(fill='x', pady=15)
+        ttk.Separator(frame_options, orient=tk.HORIZONTAL).pack(fill='x', pady=5)
         
-        # Expander for advanced parameters
+        # Modèle éjecteur
+        ttk.Label(frame_options, text="Modèle Éjecteur:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(0,3))
+        self.var_use_v2 = tk.BooleanVar(value=True)
+        chk_v2 = ttk.Checkbutton(
+            frame_options, 
+            text="☑ V2 Compressible (choc)",
+            variable=self.var_use_v2
+        )
+        chk_v2.pack(anchor='w', pady=2)
+        
+        ttk.Separator(frame_options, orient=tk.HORIZONTAL).pack(fill='x', pady=8)
+        
+        # Actions
+        ttk.Label(frame_options, text="Actions:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(0,3))
+        
+        btn_export = ttk.Button(frame_options, text="💾 Exporter JSON", command=self._export_results)
+        btn_export.pack(fill='x', pady=2)
+        
+        btn_reset = ttk.Button(frame_options, text="🔄 Réinitialiser", command=self._load_default_params)
+        btn_reset.pack(fill='x', pady=2)
+        
+        ttk.Separator(frame_options, orient=tk.HORIZONTAL).pack(fill='x', pady=8)
+        
+        # Rendements (section repliable)
+        ttk.Label(frame_options, text="Rendements (avancé):", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(0,3))
+        
         self.advanced_visible = tk.BooleanVar(value=False)
-        
-        btn_advanced = ttk.Checkbutton(
-            main_container,
-            text="▼ Paramètres avancés",
+        btn_toggle_eta = ttk.Checkbutton(
+            frame_options,
+            text="▼ Afficher les rendements",
             variable=self.advanced_visible,
             command=self._toggle_advanced_params
         )
-        btn_advanced.pack(anchor='w')
+        btn_toggle_eta.pack(anchor='w', pady=2)
         
         # Advanced frame (initially hidden)
-        self.advanced_frame = ttk.Frame(main_container)
+        self.advanced_frame = ttk.Frame(frame_options)
         
-        # T_cond
-        self._add_simple_param(self.advanced_frame, "T_cond", "T condenseur [°C]", 25, 50, 35)
+        # η pompe
+        var_eta_pump = tk.DoubleVar(value=0.7)
+        self.param_widgets['eta_pump'] = var_eta_pump
+        pump_frame = ttk.Frame(self.advanced_frame)
+        pump_frame.pack(fill='x', pady=1)
+        ttk.Label(pump_frame, text="η pompe:", width=10, anchor='w').pack(side=tk.LEFT)
+        ttk.Entry(pump_frame, textvariable=var_eta_pump, width=5).pack(side=tk.LEFT)
         
-        # T_gen
-        self._add_simple_param(self.advanced_frame, "T_gen", "T générateur [°C]", 80, 160, 100)
+        # η tuyère
+        var_eta_noz = tk.DoubleVar(value=0.85)
+        self.param_widgets['eta_nozzle'] = var_eta_noz
+        noz_frame = ttk.Frame(self.advanced_frame)
+        noz_frame.pack(fill='x', pady=1)
+        ttk.Label(noz_frame, text="η tuyère:", width=10, anchor='w').pack(side=tk.LEFT)
+        ttk.Entry(noz_frame, textvariable=var_eta_noz, width=5).pack(side=tk.LEFT)
         
-        # Efficiencies
-        ttk.Label(self.advanced_frame, text="Rendements:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(10,2))
-        self._add_simple_param(self.advanced_frame, "eta_nozzle", "  η tuyère", 0.5, 1.0, 0.85, resolution=0.01)
-        self._add_simple_param(self.advanced_frame, "eta_diffuser", "  η diffuseur", 0.5, 1.0, 0.85, resolution=0.01)
-        self._add_simple_param(self.advanced_frame, "eta_mixing", "  η mélange", 0.8, 1.0, 1.0, resolution=0.01)
+        # η diffuseur
+        var_eta_diff = tk.DoubleVar(value=0.85)
+        self.param_widgets['eta_diffuser'] = var_eta_diff
+        diff_frame = ttk.Frame(self.advanced_frame)
+        diff_frame.pack(fill='x', pady=1)
+        ttk.Label(diff_frame, text="η diffuseur:", width=10, anchor='w').pack(side=tk.LEFT)
+        ttk.Entry(diff_frame, textvariable=var_eta_diff, width=5).pack(side=tk.LEFT)
         
-        # Model selection
-        ttk.Label(self.advanced_frame, text="Modèle:", font=('Arial', 9, 'bold')).pack(anchor='w', pady=(10,2))
-        self.var_use_v2 = tk.BooleanVar(value=True)
-        chk_v2 = ttk.Checkbutton(
-            self.advanced_frame, 
-            text="☑ Utiliser Éjecteur V2 (compressible avec choc)",
-            variable=self.var_use_v2
-        )
-        chk_v2.pack(anchor='w', padx=10, pady=2)
-        
-        # Reset button
-        btn_reset = ttk.Button(self.advanced_frame, text="🔄 Réinitialiser", command=self._load_default_params)
-        btn_reset.pack(anchor='w', padx=10, pady=10)
-        
-        # ===== EXPORT =====
-        ttk.Separator(main_container, orient='horizontal').pack(fill='x', pady=10)
-        btn_export = ttk.Button(main_container, text="💾 Exporter Résultats", command=self._export_results)
-        btn_export.pack(fill='x', pady=2)
+        # η mélange
+        var_eta_mix = tk.DoubleVar(value=1.0)
+        self.param_widgets['eta_mixing'] = var_eta_mix
+        mix_frame = ttk.Frame(self.advanced_frame)
+        mix_frame.pack(fill='x', pady=1)
+        ttk.Label(mix_frame, text="η mélange:", width=10, anchor='w').pack(side=tk.LEFT)
+        ttk.Entry(mix_frame, textvariable=var_eta_mix, width=5).pack(side=tk.LEFT)
     
     def _toggle_advanced_params(self):
-        """Toggle visibility of advanced parameters."""
+        """Toggle visibility of advanced efficiency parameters."""
         if self.advanced_visible.get():
             self.advanced_frame.pack(fill='x', pady=5)
         else:
             self.advanced_frame.pack_forget()
-    
-    def _add_simple_param(self, parent, key, label, min_val, max_val, default, resolution=1):
-        """Add a compact parameter control."""
-        frame = ttk.Frame(parent)
-        frame.pack(fill='x', padx=5, pady=2)
-        
-        ttk.Label(frame, text=label, width=18, anchor='w').pack(side=tk.LEFT)
-        
-        var = tk.DoubleVar(value=default)
-        self.param_widgets[key] = var
-        
-        entry = ttk.Entry(frame, textvariable=var, width=8)
-        entry.pack(side=tk.RIGHT)
-        
-        slider = ttk.Scale(frame, from_=min_val, to=max_val, variable=var, orient=tk.HORIZONTAL, length=100)
-        slider.pack(side=tk.RIGHT, padx=5)
     
     def _add_param_block(self, parent, title):
         """Add a parameter block separator."""
@@ -345,19 +408,23 @@ class SystemDashboardView:
         self._plot_empty_diagrams()
     
     def _draw_cycle_schematic(self):
-        """Draw cycle schematic on canvas with thermodynamic state numbering."""
+        """Draw R718 ejector cycle schematic with STRICT state numbering 1-8."""
         self.canvas.delete("all")
         w = self.canvas.winfo_width() if self.canvas.winfo_width() > 1 else 800
         h = self.canvas.winfo_height() if self.canvas.winfo_height() > 1 else 320
         
-        # Component positions (relative)
+        # Layout physique du cycle (selon context.md):
+        # CYCLE MOTEUR HP: Condenseur → Pompe → Générateur → Éjecteur (tuyère primaire)
+        # CYCLE FRIGO BP: Condenseur → Détendeur → Évaporateur → Éjecteur (aspiration secondaire)
+        # ÉJECTEUR: Mélange primaire+secondaire → Diffuseur → Condenseur
+        
         components = {
-            'condenser': (0.75 * w, 0.20 * h),
-            'pump': (0.15 * w, 0.50 * h),
-            'generator': (0.15 * w, 0.80 * h),
-            'ejector': (0.50 * w, 0.50 * h),
-            'valve': (0.75 * w, 0.50 * h),
-            'evaporator': (0.75 * w, 0.80 * h),
+            'condenser': (0.50 * w, 0.15 * h),   # Centre haut
+            'pump': (0.15 * w, 0.35 * h),        # Gauche haut
+            'generator': (0.15 * w, 0.65 * h),   # Gauche bas
+            'ejector': (0.50 * w, 0.50 * h),     # Centre milieu
+            'valve': (0.85 * w, 0.35 * h),       # Droite haut
+            'evaporator': (0.85 * w, 0.65 * h),  # Droite bas
         }
         
         # Draw components as shapes
@@ -614,36 +681,83 @@ Lancer l'animation du cycle?"""
     def _update_metrics(self, result: CycleResult):
         """Update metrics cards with simulation results."""
         metrics = result.metrics
+        flags = result.flags
         
-        # COP
+        # ===== CARTE 1: Performances =====
         cop = metrics.get('COP', 0.0)
         self.lbl_cop_value.config(text=f"{cop:.3f}")
-        if cop > 0.5:
-            self.lbl_cop_status.config(text="Nominal", foreground='green')
-        elif cop > 0.2:
-            self.lbl_cop_status.config(text="Faible", foreground='orange')
-        else:
-            self.lbl_cop_status.config(text="Très faible", foreground='red')
         
-        # Q_evap
         q_evap = metrics.get('Q_evap', 0.0)
         self.lbl_qevap_value.config(text=f"{q_evap:.2f} kW")
-        self.lbl_qevap_status.config(text=f"Q_evap", foreground='blue')
         
-        # Q_gen
         q_gen = metrics.get('Q_gen', 0.0)
         self.lbl_qgen_value.config(text=f"{q_gen:.2f} kW")
-        self.lbl_qgen_status.config(text=f"Q_gen", foreground='red')
         
-        # mu
+        # ===== CARTE 2: Énergies =====
         mu = metrics.get('mu', 0.0)
         self.lbl_mu_value.config(text=f"{mu:.4f}")
-        if mu > 0.3:
-            self.lbl_mu_status.config(text="Bon entraînement", foreground='green')
-        elif mu > 0.1:
-            self.lbl_mu_status.config(text="Entraînement moyen", foreground='orange')
+        
+        q_cond = metrics.get('Q_cond', 0.0)
+        self.lbl_qcond_value.config(text=f"{q_cond:.2f} kW")
+        
+        w_pump = metrics.get('W_pump', 0.0)
+        self.lbl_wpump_value.config(text=f"{w_pump:.3f} kW")
+        
+        # ===== CARTE 3: Débits =====
+        m_dot_total = metrics.get('m_dot_total', 0.0)
+        self.lbl_mdot_total_value.config(text=f"{m_dot_total:.5f} kg/s")
+        
+        m_dot_p = metrics.get('m_dot_p', 0.0)
+        self.lbl_mdot_p_value.config(text=f"{m_dot_p:.5f} kg/s")
+        
+        m_dot_s = metrics.get('m_dot_s', 0.0)
+        self.lbl_mdot_s_value.config(text=f"{m_dot_s:.5f} kg/s")
+        
+        # ===== CARTE 4: État & Flags =====
+        # Global status
+        if flags.get('error', False):
+            self.lbl_global_status.config(text="● Erreur Critique", foreground='red')
+        elif flags.get('dimensioning_not_converged', False):
+            self.lbl_global_status.config(text="● Non Convergé", foreground='orange')
+        elif flags.get('success', True):
+            self.lbl_global_status.config(text="● ✓ OK", foreground='green')
         else:
-            self.lbl_mu_status.config(text="Faible", foreground='red')
+            self.lbl_global_status.config(text="● Inconnu", foreground='gray')
+        
+        # Flags text display
+        self.txt_flags.config(state=tk.NORMAL)
+        self.txt_flags.delete('1.0', tk.END)
+        
+        flag_text = ""
+        if flags.get('success', False):
+            flag_text += "✓ SUCCESS\\n"
+        if flags.get('error', False):
+            flag_text += "✗ ERROR\\n"
+        if flags.get('mismatch_active', False):
+            flag_text += "⚠ MISMATCH ACTIF\\n"
+        if flags.get('dimensioning_not_converged', False):
+            flag_text += "⚠ NON CONVERGÉ\\n"
+        if flags.get('low_cop', False):
+            flag_text += "⚠ COP faible\\n"
+        if flags.get('low_entrainment', False):
+            flag_text += "⚠ μ faible\\n"
+        
+        # Ejector flags
+        for key, value in flags.items():
+            if key.startswith('ejector_') and value:
+                flag_name = key.replace('ejector_', '').replace('_', ' ').title()
+                flag_text += f"• Ejector: {flag_name}\\n"
+        
+        if not flag_text:
+            flag_text = "Aucun diagnostic particulier\\n"
+        
+        # Add notes
+        if result.notes:
+            flag_text += "\\n--- Notes ---\\n"
+            flag_text += result.notes
+        
+        self.txt_flags.insert('1.0', flag_text)
+        self.txt_flags.config(state=tk.DISABLED)
     
     def _update_diagrams(self, result: CycleResult):
         """Update P-h and T-s diagrams with cycle states."""
@@ -679,21 +793,21 @@ Lancer l'animation du cycle?"""
             self.ax_ph.plot(h_hp, P_hp, 'r-', linewidth=2.5, label='Cycle Moteur (HP)', zorder=3)
             self.ax_ph.plot(h_hp, P_hp, 'ro', markersize=8, zorder=4)
         
-        # CYCLE FRIGORIFIQUE (BP - bleu): 1 → détente → 5 (et 6 identique à 5)
-        if all(get_h(i) and get_P(i) for i in [1, 5]):
-            # Détente isenthalpique: h constant
-            h_lp = [get_h(1), get_h(1), get_h(5)]
-            P_lp = [get_P(1), get_P(5), get_P(5)]
+        # CYCLE FRIGORIFIQUE (BP - bleu): 1 → 6 (détente) → 5 (évaporation)
+        if all(get_h(i) and get_P(i) for i in [1, 6, 5]):
+            # 1 → 6: Détente isenthalpique (h constant, P diminue)
+            h_lp = [get_h(1), get_h(6), get_h(5)]
+            P_lp = [get_P(1), get_P(6), get_P(5)]
             self.ax_ph.plot(h_lp, P_lp, 'b-', linewidth=2.5, label='Cycle Frigorifique (BP)', zorder=3)
-            self.ax_ph.plot([get_h(5)], [get_P(5)], 'bo', markersize=8, zorder=4)
+            # Marqueurs pour états 6 et 5
+            self.ax_ph.plot([get_h(6), get_h(5)], [get_P(6), get_P(5)], 'bo', markersize=8, zorder=4)
         
-        # ÉJECTEUR MÉLANGE (violet): 4 + 6 → 7 → 8
-        if all(get_h(i) and get_P(i) for i in [4, 7, 8]):
+        # ÉJECTEUR MÉLANGE (violet): 4 + 5 → 7 → 8 (PAS 6 qui est dans la branche BP!)
+        if all(get_h(i) and get_P(i) for i in [4, 5, 7, 8]):
             # Primaire 4 vers mélange 7
             self.ax_ph.plot([get_h(4), get_h(7)], [get_P(4), get_P(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
-            # Secondaire 6 vers mélange 7 (6 identique à 5)
-            if get_h(6) and get_P(6):
-                self.ax_ph.plot([get_h(6), get_h(7)], [get_P(6), get_P(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
+            # Secondaire 5 vers mélange 7 (état 5 = sortie évaporateur)
+            self.ax_ph.plot([get_h(5), get_h(7)], [get_P(5), get_P(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
             # Diffuseur 7 → 8
             self.ax_ph.plot([get_h(7), get_h(8)], [get_P(7), get_P(8)], 'm-', linewidth=2.5, label='Éjecteur', zorder=3)
             self.ax_ph.plot([get_h(7), get_h(8)], [get_P(7), get_P(8)], 'mo', markersize=8, zorder=4)
@@ -702,17 +816,17 @@ Lancer l'animation du cycle?"""
         if all(get_h(i) and get_P(i) for i in [8, 1]):
             self.ax_ph.plot([get_h(8), get_h(1)], [get_P(8), get_P(1)], 'g-', linewidth=2.5, label='Condensation', zorder=3)
         
-        # Add state labels
+        # Annotations des états avec labels physiques
         labels = {
-            1: '1-Cond.out', 2: '2-Pompe', 3: '3-Gén.', 4: '4-Ejec.P',
-            5: '5-Evap.', 6: '6-Ejec.S', 7: '7-Mix', 8: '8-Diff.'
+            1: '①Cond.out', 2: '②Pompe', 3: '③Gén.', 4: '④Tuyère',
+            5: '⑤Évap.out', 6: '⑥Détente', 7: '⑦Mix', 8: '⑧Diff.'
         }
         for i, label in labels.items():
             h, P = get_h(i), get_P(i)
             if h and P:
                 self.ax_ph.annotate(label, (h, P), textcoords="offset points", 
-                                   xytext=(8, 8), fontsize=9, color='black',
-                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7),
+                                   xytext=(5, 5), fontsize=8, color='black', fontweight='bold',
+                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8, edgecolor='black'),
                                    zorder=5)
         
         self.ax_ph.grid(True, alpha=0.3, which='both', linestyle='--')
@@ -737,43 +851,39 @@ Lancer l'animation du cycle?"""
         def get_T(i):
             return states[i].T if i in states and states[i].T is not None else None
         
-        # CYCLE MOTEUR (HP - rouge): 1 → 2 → 3 → 4
+        # TRACER LE CYCLE COMPLET DANS L'ORDRE PHYSIQUE (T-s)
+        # Cycle Moteur HP: 1 → 2 (compression pompe) → 3 (génération vapeur) → 4 (détente tuyère)
         if all(get_s(i) and get_T(i) for i in [1, 2, 3, 4]):
-            s_hp = [get_s(i) for i in [1, 2, 3, 4]]
-            T_hp = [get_T(i) for i in [1, 2, 3, 4]]
-            self.ax_ts.plot(s_hp, T_hp, 'r-', linewidth=2.5, label='Cycle Moteur (HP)', zorder=3)
-            self.ax_ts.plot(s_hp, T_hp, 'ro', markersize=8, zorder=4)
+            s_motor = [get_s(i) for i in [1, 2, 3, 4]]
+            T_motor = [get_T(i) for i in [1, 2, 3, 4]]
+            self.ax_ts.plot(s_motor, T_motor, 'r-', linewidth=2.5, marker='o', markersize=6, label='Moteur 1→2→3→4', zorder=3)
         
-        # CYCLE FRIGORIFIQUE (BP - bleu): 1 → détente → 5
-        if all(get_s(i) and get_T(i) for i in [1, 5]):
-            # Détente isenthalpique: augmentation entropie
-            s_lp = [get_s(1), get_s(1), get_s(5)]
-            T_lp = [get_T(1), get_T(5), get_T(5)]
-            self.ax_ts.plot(s_lp, T_lp, 'b-', linewidth=2.5, label='Cycle Frigorifique (BP)', zorder=3)
-            self.ax_ts.plot([get_s(5)], [get_T(5)], 'bo', markersize=8, zorder=4)
+        # Cycle Frigorifique BP: 1 → 6 (détente isenthalpique) → 5 (évaporation iso-P)
+        if all(get_s(i) and get_T(i) for i in [1, 6, 5]):
+            s_refrig = [get_s(1), get_s(6), get_s(5)]
+            T_refrig = [get_T(1), get_T(6), get_T(5)]
+            self.ax_ts.plot(s_refrig, T_refrig, 'b-', linewidth=2.5, marker='s', markersize=6, label='Frigo 1→6→5', zorder=3)
         
-        # ÉJECTEUR (violet): 4 + 6 → 7 → 8
-        if all(get_s(i) and get_T(i) for i in [4, 7, 8]):
-            # Primaire 4 vers mélange 7
-            self.ax_ts.plot([get_s(4), get_s(7)], [get_T(4), get_T(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
-            # Secondaire 6 vers mélange 7
-            if get_s(6) and get_T(6):
-                self.ax_ts.plot([get_s(6), get_s(7)], [get_T(6), get_T(7)], 'm--', linewidth=2, alpha=0.7, zorder=2)
+        # Éjecteur: 4 (primaire) + 5 (secondaire) → 7 (mélange) → 8 (compression diffuseur)
+        if all(get_s(i) and get_T(i) for i in [4, 5, 7, 8]):
+            # Primaire 4 → 7
+            self.ax_ts.plot([get_s(4), get_s(7)], [get_T(4), get_T(7)], 'm--', linewidth=2, alpha=0.6, zorder=2)
+            # Secondaire 5 → 7
+            self.ax_ts.plot([get_s(5), get_s(7)], [get_T(5), get_T(7)], 'm--', linewidth=2, alpha=0.6, zorder=2)
             # Diffuseur 7 → 8
-            self.ax_ts.plot([get_s(7), get_s(8)], [get_T(7), get_T(8)], 'm-', linewidth=2.5, label='Éjecteur', zorder=3)
-            self.ax_ts.plot([get_s(7), get_s(8)], [get_T(7), get_T(8)], 'mo', markersize=8, zorder=4)
+            self.ax_ts.plot([get_s(7), get_s(8)], [get_T(7), get_T(8)], 'm-', linewidth=2.5, marker='^', markersize=6, label='Éjecteur 4+5→7→8', zorder=3)
         
-        # CONDENSATION (vert): 8 → 1
+        # Condensation: 8 → 1 (fermeture cycle)
         if all(get_s(i) and get_T(i) for i in [8, 1]):
-            self.ax_ts.plot([get_s(8), get_s(1)], [get_T(8), get_T(1)], 'g-', linewidth=2.5, label='Condensation', zorder=3)
+            self.ax_ts.plot([get_s(8), get_s(1)], [get_T(8), get_T(1)], 'g-', linewidth=2.5, marker='d', markersize=6, label='Condensation 8→1', zorder=3)
         
-        # Add state labels
+        # Annotations des états
         for i, label in labels.items():
             s, T = get_s(i), get_T(i)
             if s and T:
                 self.ax_ts.annotate(label, (s, T), textcoords="offset points", 
-                                   xytext=(8, 8), fontsize=9, color='black',
-                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7),
+                                   xytext=(5, 5), fontsize=8, color='black', fontweight='bold',
+                                   bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.8, edgecolor='black'),
                                    zorder=5)
         
         self.ax_ts.grid(True, alpha=0.3, linestyle='--')

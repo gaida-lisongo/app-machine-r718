@@ -1,4 +1,5 @@
 # CONTEXT – Master Research Project
+
 ## Numerical Modeling of a 12 kW Water (R718) Solar Ejector Refrigeration System
 
 ---
@@ -23,10 +24,12 @@ The simulation must be scientifically consistent with thermodynamic laws and com
 # 2. THERMODYNAMIC SPECIFICATIONS
 
 ## Working Fluid:
+
 - Water (R718)
 - Properties must be obtained using CoolProp
 
 ## Nominal Conditions:
+
 - Cooling capacity: 12 kW
 - Generator temperature: 100 °C
 - Condenser temperature: 35 °C
@@ -34,6 +37,7 @@ The simulation must be scientifically consistent with thermodynamic laws and com
 - Ambient pressure: 1.013 bar
 
 ## Assumptions:
+
 - Steady state
 - 1D models
 - Adiabatic ejector
@@ -46,29 +50,29 @@ The simulation must be scientifically consistent with thermodynamic laws and com
 # 3. NOTATION CONVENTIONS (MANDATORY)
 
 Velocity must be written as:
-    c
+c
 
 Global heat transfer coefficient:
-    K
+K
 
 Mass flow rates:
-    m_dot_pri  (primary)
-    m_dot_sec  (secondary)
+m_dot_pri (primary)
+m_dot_sec (secondary)
 
 Enthalpy:
-    h
+h
 
 Entropy:
-    s
+s
 
 Pressure:
-    P
+P
 
 Temperature:
-    T
+T
 
 Quality:
-    x
+x
 
 ---
 
@@ -106,6 +110,7 @@ Each module must:
 All modules must exchange thermodynamic states using a unified class:
 
 Attributes:
+
 - P
 - T
 - h
@@ -122,41 +127,47 @@ No module should manually approximate thermodynamic properties.
 # 6. PHYSICAL MODEL REQUIREMENTS PER MODULE
 
 ## Pump:
+
 - Isentropic efficiency model
 - NPSH calculation
 - Cavitation warning
 
 ## Generator:
+
 - Direct heating of working fluid
 - Solar input Gb
 - Optical efficiency
 - Thermal losses (convective + radiative)
 
 ## Expansion Valve:
+
 - Isenthalpic process
 - Optional orifice mass flow model
 
 ## Evaporator:
+
 - Film evaporation
 - Energy balance:
-    Q_evap = m_dot_sec (h3 - h2)
+  Q_evap = m_dot_sec (h3 - h2)
 - Optional heat exchanger model:
-    Q = K A ΔT_lm
+  Q = K A ΔT_lm
 
 ## Condenser:
+
 - Film condensation (Nusselt correlation)
 - Natural convection on air side
 - Global heat transfer:
-    1/K = 1/h_cond + wall + 1/h_air
+  1/K = 1/h_cond + wall + 1/h_air
 
 ## Ejector:
+
 - 1D compressible flow
 - Nozzle efficiency
 - Mixing section (mass + momentum + energy)
 - Normal shock (Rankine-Hugoniot relations)
 - Diffuser efficiency
 - Entrainment ratio:
-    mu = m_dot_sec / m_dot_pri
+  mu = m_dot_sec / m_dot_pri
 - Must detect critical and subcritical regimes
 
 ---
@@ -166,15 +177,19 @@ No module should manually approximate thermodynamic properties.
 Development must proceed in stages:
 
 Stage 1:
+
 - Fix condenser and evaporator pressures from saturation temperatures
 
 Stage 2:
+
 - Introduce heat exchanger coupling
 
 Stage 3:
+
 - Activate full ejector shock model
 
 Global convergence criteria:
+
 - Residual < 1e-6
 - Physical consistency (P>0, 0<=x<=1 if two-phase)
 
@@ -226,3 +241,12 @@ Architecture must allow future addition of:
 ---
 
 END OF CONTEXT
+
+1->2: Détendeur
+2->3: Evaporateur
+3->4: Chambre de mélange de l'ejecteur
+4->5: Diffuseur de l'ejecteur
+5->6: Condenseur
+1->7: Pompe
+7->8: Chaudière
+8->4: Tuyère de l'ejecteur
