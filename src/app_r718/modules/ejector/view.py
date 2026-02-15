@@ -223,16 +223,26 @@ class EjectorTkView:
         
         def simulate():
             try:
-                # Check if states are loaded
-                if result_data["state_p_in"] is None or result_data["state_s_in"] is None:
-                    messagebox.showwarning("Attention", "Veuillez d'abord générer les états nominaux!")
-                    return
+                # Always regenerate states from current temperature values
+                # This makes the UI dynamic - user can change temps and simulate directly
+                T_gen = float(var_T_gen.get())
+                T_evap = float(var_T_evap.get())
+                T_cond = float(var_T_cond.get())
                 
-                state_p_in = result_data["state_p_in"]
-                state_s_in = result_data["state_s_in"]
-                P_out = result_data["P_out"]
+                # Generate primary state (saturated vapor at generator pressure)
+                P_gen = props.Psat_T(T_gen)
+                state_p_in = ThermoState()
+                state_p_in.update_from_PX(P_gen, 1.0)  # Saturated vapor
                 
-                # Parse parameters
+                # Generate secondary state (saturated vapor at evaporator pressure)
+                P_evap = props.Psat_T(T_evap)
+                state_s_in = ThermoState()
+                state_s_in.update_from_PX(P_evap, 1.0)  # Saturated vapor
+                
+                # Outlet pressure: condenser pressure
+                P_out = props.Psat_T(T_cond)
+                
+                # Parse operation parameters
                 m_dot_p = float(var_m_dot_p.get())
                 eta_nozzle = float(var_eta_nozzle.get())
                 eta_diffuser = float(var_eta_diffuser.get())
@@ -251,6 +261,9 @@ class EjectorTkView:
                 
                 # Store results
                 result_data["result"] = result
+                result_data["state_p_in"] = state_p_in
+                result_data["state_s_in"] = state_s_in
+                result_data["P_out"] = P_out
                 
                 # Display results
                 display_results(result, state_p_in, state_s_in)
