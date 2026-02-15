@@ -56,8 +56,11 @@ class EjectorResultV2(EjectorResult):
     P_after_shock: float = 0.0
     P_suction_local: float = 0.0
     suction_condition: bool = False
+    static_suction_check: bool = False
+    dynamic_entrainment: bool = False
     compression_ratio: float = 0.0
     pressure_lift: float = 0.0
+    entropy_jump_suspect: bool = False
     state_before_shock: ThermoState = None
     state_after_shock: ThermoState = None
     physically_consistent_mixture: bool = True
@@ -666,9 +669,18 @@ class EjectorModelV2(EjectorModel):
         
         # ===== ADDITIONAL DIAGNOSTICS =====
         
-        # Suction condition
-        P_suction_local = P_before_shock_value if shock_location != "none" else P_mix
-        suction_condition = P_suction_local < P_s_in
+        # Suction diagnostic: use primary nozzle exit pressure as local suction pressure
+        # This is the lowest pressure point in the entrainment zone (jet exit)
+        P_suction_local = state_p_noz.P
+        
+        # Static suction check: pressure-based criterion
+        static_suction_check = P_suction_local < P_s_in
+        
+        # Dynamic entrainment: momentum-based criterion
+        dynamic_entrainment = (mu > 0.01) and (mach_nozzle > 1.0)
+        
+        # Legacy suction_condition for backward compatibility
+        suction_condition = static_suction_check
         
         # Compression ratio
         compression_ratio = P_out / P_s_in if P_s_in > 0 else 0.0
@@ -705,6 +717,14 @@ class EjectorModelV2(EjectorModel):
         # Entropy jump in kJ/kg/K
         entropy_jump_kJ = entropy_jump / 1000.0
         
+        # Entropy plausibility check (soft validation for weak shocks)
+        entropy_jump_suspect = False
+        if shock_location != "none" and mach_before_shock > 0:
+            # For weak shocks (M < 1.1), entropy jump should be small
+            if mach_before_shock < 1.1 and entropy_jump_kJ > 0.2:
+                entropy_jump_suspect = True
+                notes.append(f"Warning: Large entropy jump ({entropy_jump_kJ:.3f} kJ/kg/K) for weak shock (M={mach_before_shock:.3f})")
+        
         # Return V2 result with extended information
         return EjectorResultV2(
             mu=mu,
@@ -729,8 +749,11 @@ class EjectorModelV2(EjectorModel):
             P_after_shock=P_after_shock_value,
             P_suction_local=P_suction_local,
             suction_condition=suction_condition,
+            static_suction_check=static_suction_check,
+            dynamic_entrainment=dynamic_entrainment,
             compression_ratio=compression_ratio,
             pressure_lift=pressure_lift,
+            entropy_jump_suspect=entropy_jump_suspect,
             state_before_shock=state_before_shock_obj,
             state_after_shock=state_after_shock_obj,
             physically_consistent_mixture=physically_consistent_mixture,

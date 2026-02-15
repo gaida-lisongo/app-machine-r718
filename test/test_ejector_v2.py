@@ -599,3 +599,70 @@ class TestV2NewDiagnostics:
             s2 = result.state_after_shock.s
             assert s2 > s1, "Entropy must increase across shock"
 
+    def test_entropy_jump_reasonable_for_weak_shock(self, controller_v2, props):
+        """Test that entropy jump is physically plausible for weak shocks (M ≈ 1.0-1.05)."""
+        # Create conditions that produce a weak shock
+        # Use lower temperature difference to get weaker shock
+        T_gen = 383.15  # 110°C
+        T_evap = 288.15  # 15°C
+        T_cond = 303.15  # 30°C
+        
+        P_gen = props.Psat_T(T_gen)
+        P_evap = props.Psat_T(T_evap)
+        P_cond = props.Psat_T(T_cond)
+        
+        state_p_in = ThermoState()
+        state_p_in.update_from_PX(P_gen, 1.0)
+        
+        state_s_in = ThermoState()
+        state_s_in.update_from_PX(P_evap, 1.0)
+        
+        # Try to find conditions that create weak shock
+        # Use lower primary flow to reduce Mach number
+        result = controller_v2.solve(
+            state_p_in=state_p_in,
+            state_s_in=state_s_in,
+            P_out=P_cond,
+            m_dot_p=0.015,  # Lower flow rate
+            eta_nozzle=0.80,  # Lower efficiency to reduce Mach
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # If shock is detected and weak (M < 1.1)
+        if result.shock_location != "none" and result.mach_before_shock < 1.1:
+            # Entropy jump should be small for weak shocks
+            # Theoretical: For M=1.05, ideal gas gives Δs ≈ 0.05-0.15 kJ/kg/K
+            assert result.entropy_jump_kJ < 0.3, \
+                f"Weak shock (M={result.mach_before_shock:.3f}) should have Δs < 0.3 kJ/kg/K, got {result.entropy_jump_kJ:.4f}"
+            
+            # Check that suspect flag is set if entropy is too high
+            if result.entropy_jump_kJ > 0.2:
+                assert result.entropy_jump_suspect, \
+                    f"High entropy jump ({result.entropy_jump_kJ:.4f} kJ/kg/K) should set entropy_jump_suspect flag"
+
+    def test_dual_suction_diagnostics(self, controller_v2, high_pressure_states):
+        """Test that dual suction diagnostics (static and dynamic) are computed."""
+        result = controller_v2.solve(
+            state_p_in=high_pressure_states['state_p_in'],
+            state_s_in=high_pressure_states['state_s_in'],
+            P_out=high_pressure_states['P_out'],
+            m_dot_p=0.025,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # Check that new diagnostic fields exist
+        assert hasattr(result, 'static_suction_check'), "static_suction_check should exist"
+        assert hasattr(result, 'dynamic_entrainment'), "dynamic_entrainment should exist"
+        
+        # P_suction_local should be primary nozzle exit pressure
+        assert result.P_suction_local == result.state_p_noz.P, \
+            "P_suction_local should equal primary nozzle exit pressure"
+        
+        # Dynamic entrainment requires mu > 0.01 and mach_primary_nozzle > 1.0
+        if result.mu > 0.01 and result.mach_primary_nozzle > 1.0:
+            assert result.dynamic_entrainment, "dynamic_entrainment should be True when μ>0.01 and M>1"
+        else:
+            assert not result.dynamic_entrainment, "dynamic_entrainment should be False otherwise"

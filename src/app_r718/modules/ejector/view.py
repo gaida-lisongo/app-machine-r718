@@ -408,14 +408,17 @@ class EjectorTkView:
                     output.append(f"    Ratio P₂/P₁: {result.P_after_shock/result.P_before_shock:.3f}")
                     output.append(f"    Saut entropie Δs: {result.entropy_jump_kJ:.4f} kJ/kg/K")
                     output.append(f"                   = {result.entropy_jump:.2f} J/kg/K")
+                    if result.entropy_jump_suspect:
+                        output.append(f"    ⚠️ Avertissement: Δs élevé pour choc faible (M={result.mach_before_shock:.3f})")
                 else:
                     output.append("  Pas de choc détecté (écoulement subsonique)")
                 output.append("")
                 
                 # Suction and pressure diagnostics
                 output.append("  📊 DIAGNOSTICS ASPIRATION:")
-                output.append(f"    P locale aspiration: {result.P_suction_local/1e3:.2f} kPa")
-                output.append(f"    Condition aspiration: {'✅ OUI' if result.suction_condition else '❌ NON'}")
+                output.append(f"    P locale aspiration (sortie tuyère): {result.P_suction_local/1e3:.2f} kPa")
+                output.append(f"    Test statique (P_loc < P_sec): {'✅ OUI' if result.static_suction_check else '❌ NON'}")
+                output.append(f"    Entraînement dynamique (μ>0.01, M>1): {'✅ OUI' if result.dynamic_entrainment else '❌ NON'}")
                 output.append(f"    Ratio compression: {result.compression_ratio:.3f}")
                 output.append(f"    Élévation pression: {result.pressure_lift/1e3:.2f} kPa")
                 output.append(f"    Cohérence mélange: {'✅ OUI' if result.physically_consistent_mixture else '⚠️ NON'}")
