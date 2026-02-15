@@ -85,9 +85,17 @@ class MainWindow:
         )
         btn_expansion.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
         
+        # Evaporator (available)
+        btn_evaporator = ttk.Button(
+            parent,
+            text="❄️ Évaporateur (Evaporator)",
+            command=self._open_evaporator,
+            **button_style,
+        )
+        btn_evaporator.grid(row=1, column=0, padx=10, pady=5, sticky="ew")
+        
         # Future modules (disabled for now)
         future_modules = [
-            "❄️ Évaporateur (Evaporator)",
             "♨️ Condenseur (Condenser)",
             "⚙️ Pompe (Pump)",
             "🔥 Générateur (Generator)",
@@ -95,7 +103,7 @@ class MainWindow:
             "🔄 Système Complet (Full System)",
         ]
         
-        for i, module_name in enumerate(future_modules, start=1):
+        for i, module_name in enumerate(future_modules, start=2):
             btn = ttk.Button(
                 parent,
                 text=module_name,
@@ -113,6 +121,13 @@ class MainWindow:
         from app_r718.modules.expansion_valve.view import ExpansionValveTkView
         
         ExpansionValveTkView.open_window(self.root)
+    
+    def _open_evaporator(self):
+        """Open the Evaporator simulation window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.evaporator.view import EvaporatorTkView
+        
+        EvaporatorTkView.open_window(self.root)
     
     def run(self):
         """Start the application main loop."""
