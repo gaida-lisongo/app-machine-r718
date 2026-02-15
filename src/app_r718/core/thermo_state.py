@@ -9,7 +9,7 @@ Date: 2026-02-14
 """
 
 from typing import Optional, Dict, Any
-from src.core.props_service import get_props_service
+from app_r718.core.props_service import get_props_service
 
 
 class ThermoState:

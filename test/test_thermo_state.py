@@ -9,8 +9,8 @@ Date: 2026-02-14
 """
 
 import pytest
-from src.core.thermo_state import ThermoState
-from src.core.props_service import get_props_service
+from app_r718.core.thermo_state import ThermoState
+from app_r718.core.props_service import get_props_service
 
 
 class TestThermoStateInitialization:
