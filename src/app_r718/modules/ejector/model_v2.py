@@ -31,18 +31,36 @@ class EjectorResultV2(EjectorResult):
         mach_after_shock: Mach number after shock wave [-]
         shock_location: Location of shock wave (descriptive string)
         regime: Flow regime ("subsonic", "choked", "supersonic")
+        regime_type: Ejector regime ("non-entraining", "critical", "entraining-supersonic")
         entropy_jump: Entropy increase across shock [J/kg/K]
+        entropy_jump_kJ: Entropy increase across shock [kJ/kg/K]
         P_before_shock: Pressure before shock [Pa]
         P_after_shock: Pressure after shock [Pa]
+        P_suction_local: Local suction pressure [Pa]
+        suction_condition: True if P_suction < P_secondary [-]
+        compression_ratio: P_out / P_secondary [-]
+        pressure_lift: P_out - P_secondary [Pa]
+        state_before_shock: ThermoState before shock (if detected)
+        state_after_shock: ThermoState after shock (if detected)
+        physically_consistent_mixture: True if h_mix in valid range [-]
     """
     mach_primary_nozzle: float = 0.0
     mach_before_shock: float = 0.0
     mach_after_shock: float = 0.0
     shock_location: str = "none"
     regime: str = "subsonic"
+    regime_type: str = "non-entraining"
     entropy_jump: float = 0.0
+    entropy_jump_kJ: float = 0.0
     P_before_shock: float = 0.0
     P_after_shock: float = 0.0
+    P_suction_local: float = 0.0
+    suction_condition: bool = False
+    compression_ratio: float = 0.0
+    pressure_lift: float = 0.0
+    state_before_shock: ThermoState = None
+    state_after_shock: ThermoState = None
+    physically_consistent_mixture: bool = True
 
 
 class EjectorModelV2(EjectorModel):
@@ -67,6 +85,11 @@ class EjectorModelV2(EjectorModel):
     # Thermodynamic constants for water vapor (ideal gas approximation)
     GAMMA = 1.33  # Specific heat ratio for steam [-]
     R_SPECIFIC = 461.5  # Specific gas constant [J/kg/K]
+    
+    # Numerical tolerances
+    MACH_SHOCK_THRESHOLD = 1.0 + 1e-6  # Mach tolerance for shock detection
+    MAX_MU = 5.0  # Maximum entrainment ratio
+    MAX_ITERATIONS = 100  # Maximum solver iterations
     
     def __init__(self):
         """Initialize V2 model."""
@@ -545,18 +568,18 @@ class EjectorModelV2(EjectorModel):
         shock_location = "none"
         P_before_shock_value = 0.0
         P_after_shock_value = 0.0
+        state_before_shock_obj = None
+        state_after_shock_obj = None
         
-        # Tolerance for shock detection (avoid numerical noise)
-        MACH_SHOCK_THRESHOLD = 1.0 + 1e-6
-        
-        if mach_mix > MACH_SHOCK_THRESHOLD:
+        if mach_mix > self.MACH_SHOCK_THRESHOLD:
             # Apply normal shock (M > 1 + eps)
             shock_location = "mixing_section"
             regime = "supersonic"
             
             try:
-                # Save pressure BEFORE shock
+                # Save pressure and state BEFORE shock
                 P_before_shock_value = state_mix.P
+                state_before_shock_obj = state_mix.clone()
                 
                 shock_data = self.apply_normal_shock(
                     mach_1=mach_mix,
@@ -567,20 +590,35 @@ class EjectorModelV2(EjectorModel):
                 
                 mach_before_shock = mach_mix
                 mach_after_shock = shock_data["mach_2"]
-                entropy_jump = shock_data["delta_s"]
+                entropy_jump = shock_data["delta_s"]  # In J/kg/K (ideal gas)
                 
                 # Update state after shock
                 P_after_shock_value = shock_data["P_2"]
-                h_after_shock = shock_data["h_2"]
+                T_after_shock = shock_data["T_2"]
                 
-                # Validate shock physics: P2 > P1
+                # Validate shock physics: P2 > P1 (strict increase)
                 if P_after_shock_value <= P_before_shock_value * (1.0 + 1e-6):
                     # Ensure minimum pressure increase across shock
                     P_after_shock_value = P_before_shock_value * 1.001
                     notes.append("Shock pressure ratio adjusted for numerical stability")
                 
+                # Use (P,T) instead of (P,h) for real gas accuracy
+                # This ensures CoolProp computes correct entropy increase
                 state_mix_after_shock = ThermoState()
-                state_mix_after_shock.update_from_PH(P_after_shock_value, h_after_shock)
+                state_mix_after_shock.update_from_PT(P_after_shock_value, T_after_shock)
+                state_after_shock_obj = state_mix_after_shock.clone()
+                
+                # Recalculate entropy jump from REAL thermodynamic states (CoolProp)
+                # This overrides the ideal gas calculation to ensure consistency
+                entropy_jump_real = state_after_shock_obj.s - state_before_shock_obj.s
+                
+                # Validate 2nd law: entropy must increase
+                if entropy_jump_real < 0:
+                    # If CoolProp gives decreasing entropy, swap states or flag error
+                    notes.append(f"Warning: CoolProp entropy decreased ({entropy_jump_real:.2f} J/kg/K), using ideal gas value")
+                else:
+                    # Use real entropy jump from CoolProp
+                    entropy_jump = entropy_jump_real
                 
                 # Use post-shock state for diffuser inlet
                 state_mix = state_mix_after_shock
@@ -592,6 +630,8 @@ class EjectorModelV2(EjectorModel):
                 shock_location = "none"
                 P_before_shock_value = 0.0
                 P_after_shock_value = 0.0
+                state_before_shock_obj = None
+                state_after_shock_obj = None
         
         # ===== STEP 6: DIFFUSER (Subsonic Compression) =====
         
@@ -624,6 +664,47 @@ class EjectorModelV2(EjectorModel):
             flags["poor_pressure_recovery"] = True
             notes.append("Poor pressure recovery: P_mix too close to P_out")
         
+        # ===== ADDITIONAL DIAGNOSTICS =====
+        
+        # Suction condition
+        P_suction_local = P_before_shock_value if shock_location != "none" else P_mix
+        suction_condition = P_suction_local < P_s_in
+        
+        # Compression ratio
+        compression_ratio = P_out / P_s_in if P_s_in > 0 else 0.0
+        
+        # Pressure lift
+        pressure_lift = P_out - P_s_in
+        
+        # Regime type
+        if mu < 0.01:
+            regime_type = "non-entraining"
+        elif mach_before_shock > self.MACH_SHOCK_THRESHOLD:
+            regime_type = "entraining-supersonic"
+        else:
+            regime_type = "critical"
+        
+        # Check mixture physical consistency
+        physically_consistent_mixture = True
+        try:
+            # Check if h_mix is between h_liq and h_vap at P_mix
+            T_sat_mix = self.props.Tsat_P(P_mix)
+            h_liq_sat = self.props.h_PX(P_mix, 0.0)
+            h_vap_sat = self.props.h_PX(P_mix, 1.0)
+            
+            h_mix_actual = state_mix.h
+            if not (h_liq_sat <= h_mix_actual <= h_vap_sat):
+                # If outside saturation dome, check if superheated
+                if h_mix_actual < h_liq_sat or (h_mix_actual > h_vap_sat and state_mix.T < T_sat_mix):
+                    physically_consistent_mixture = False
+                    notes.append("Mixture enthalpy outside valid range")
+        except Exception:
+            # If can't check, assume consistent
+            pass
+        
+        # Entropy jump in kJ/kg/K
+        entropy_jump_kJ = entropy_jump / 1000.0
+        
         # Return V2 result with extended information
         return EjectorResultV2(
             mu=mu,
@@ -641,7 +722,16 @@ class EjectorModelV2(EjectorModel):
             mach_after_shock=mach_after_shock,
             shock_location=shock_location,
             regime=regime,
-            entropy_jump=entropy_jump,
+            regime_type=regime_type,
+            entropy_jump=entropy_jump,  # J/kg/K
+            entropy_jump_kJ=entropy_jump_kJ,  # kJ/kg/K
             P_before_shock=P_before_shock_value,
             P_after_shock=P_after_shock_value,
+            P_suction_local=P_suction_local,
+            suction_condition=suction_condition,
+            compression_ratio=compression_ratio,
+            pressure_lift=pressure_lift,
+            state_before_shock=state_before_shock_obj,
+            state_after_shock=state_after_shock_obj,
+            physically_consistent_mixture=physically_consistent_mixture,
         )

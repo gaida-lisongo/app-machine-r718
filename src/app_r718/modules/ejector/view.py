@@ -392,17 +392,33 @@ class EjectorTkView:
             # V2-specific results (if using V2 model)
             if isinstance(result, EjectorResultV2):
                 output.append("🚀 COMPRESSIBLE FLOW (V2):")
-                output.append(f"  Régime: {result.regime}")
+                output.append(f"  Régime écoulement: {result.regime}")
+                output.append(f"  Type éjecteur: {result.regime_type}")
                 output.append(f"  Mach tuyère primaire: {result.mach_primary_nozzle:.3f}")
+                output.append("")
+                
+                # Shock wave details
                 if result.shock_location != "none":
-                    output.append(f"  Mach avant choc: {result.mach_before_shock:.3f}")
-                    output.append(f"  Mach après choc: {result.mach_after_shock:.3f}")
-                    output.append(f"  Localisation choc: {result.shock_location}")
-                    output.append(f"  Saut d'entropie: {result.entropy_jump:.2f} J/kg/K")
-                    output.append(f"  P avant choc: {result.P_before_shock/1e3:.2f} kPa")
-                    output.append(f"  P après choc: {result.P_after_shock/1e3:.2f} kPa")
+                    output.append("  ⚡ ONDE DE CHOC NORMALE:")
+                    output.append(f"    Localisation: {result.shock_location}")
+                    output.append(f"    Mach amont (M₁): {result.mach_before_shock:.3f}")
+                    output.append(f"    Mach aval (M₂): {result.mach_after_shock:.3f}")
+                    output.append(f"    P amont: {result.P_before_shock/1e3:.2f} kPa")
+                    output.append(f"    P aval: {result.P_after_shock/1e3:.2f} kPa")
+                    output.append(f"    Ratio P₂/P₁: {result.P_after_shock/result.P_before_shock:.3f}")
+                    output.append(f"    Saut entropie Δs: {result.entropy_jump_kJ:.4f} kJ/kg/K")
+                    output.append(f"                   = {result.entropy_jump:.2f} J/kg/K")
                 else:
-                    output.append(f"  Pas de choc détecté (écoulement subsonique)")
+                    output.append("  Pas de choc détecté (écoulement subsonique)")
+                output.append("")
+                
+                # Suction and pressure diagnostics
+                output.append("  📊 DIAGNOSTICS ASPIRATION:")
+                output.append(f"    P locale aspiration: {result.P_suction_local/1e3:.2f} kPa")
+                output.append(f"    Condition aspiration: {'✅ OUI' if result.suction_condition else '❌ NON'}")
+                output.append(f"    Ratio compression: {result.compression_ratio:.3f}")
+                output.append(f"    Élévation pression: {result.pressure_lift/1e3:.2f} kPa")
+                output.append(f"    Cohérence mélange: {'✅ OUI' if result.physically_consistent_mixture else '⚠️ NON'}")
                 output.append("")
             
             # Diagnostic flags
@@ -504,6 +520,23 @@ class EjectorTkView:
                 'out': (result.state_out.h / 1e3, result.state_out.P, result.state_out.s / 1e3, result.state_out.T),
             }
             
+            # Add shock states if available (V2 model)
+            has_shock = False
+            if isinstance(result, EjectorResultV2) and result.state_before_shock is not None:
+                has_shock = True
+                states['before_shock'] = (
+                    result.state_before_shock.h / 1e3,
+                    result.state_before_shock.P,
+                    result.state_before_shock.s / 1e3,
+                    result.state_before_shock.T
+                )
+                states['after_shock'] = (
+                    result.state_after_shock.h / 1e3,
+                    result.state_after_shock.P,
+                    result.state_after_shock.s / 1e3,
+                    result.state_after_shock.T
+                )
+            
             # ========== P-h DIAGRAM ==========
             
             # Plot saturation dome
@@ -522,6 +555,15 @@ class EjectorTkView:
             ax_ph.plot(states['s_in'][0], states['s_in'][1], 'bs', markersize=10, label='Sec. entrée', zorder=4)
             ax_ph.plot(states['mix'][0], states['mix'][1], 'go', markersize=10, label='Mélange', zorder=4)
             ax_ph.plot(states['out'][0], states['out'][1], 'r^', markersize=12, label='Sortie', zorder=4)
+            
+            # Plot shock states if available
+            if has_shock:
+                ax_ph.plot(states['before_shock'][0], states['before_shock'][1], 
+                          'kX', markersize=12, markeredgewidth=2.5, 
+                          label='Avant choc', zorder=5)
+                ax_ph.plot(states['after_shock'][0], states['after_shock'][1], 
+                          'kD', markersize=10, markeredgewidth=2,
+                          label='Après choc', zorder=5)
             
             # Plot process lines
             # Primary nozzle: p_in → p_noz
@@ -584,6 +626,15 @@ class EjectorTkView:
             ax_ts.plot(states['mix'][2], states['mix'][3], 'go', markersize=10, label='Mélange', zorder=4)
             ax_ts.plot(states['out'][2], states['out'][3], 'r^', markersize=12, label='Sortie', zorder=4)
             
+            # Plot shock states if available
+            if has_shock:
+                ax_ts.plot(states['before_shock'][2], states['before_shock'][3], 
+                          'kX', markersize=12, markeredgewidth=2.5, 
+                          label='Avant choc', zorder=5)
+                ax_ts.plot(states['after_shock'][2], states['after_shock'][3], 
+                          'kD', markersize=10, markeredgewidth=2,
+                          label='Après choc', zorder=5)
+            
             # Plot process lines
             ax_ts.plot([states['p_in'][2], states['p_noz'][2]], 
                       [states['p_in'][3], states['p_noz'][3]], 
@@ -599,33 +650,39 @@ class EjectorTkView:
                       'darkred', linewidth=2.5, zorder=3)
             
             # V2-specific: Mark shock wave on T-s diagram
-            if isinstance(result, EjectorResultV2) and result.shock_location != "none":
-                # Mark entropy jump at shock location
-                # Assuming shock occurs at mixing state
-                shock_s = states['mix'][2]
-                shock_T = states['mix'][3]
+            if isinstance(result, EjectorResultV2) and result.shock_location != "none" and has_shock:
+                # Draw entropy jump (vertical line at constant T)
+                s1 = states['before_shock'][2]
+                s2 = states['after_shock'][2]
+                T_shock = states['before_shock'][3]  # Approximately constant T across shock
                 
-                # Draw shock indicator
-                ax_ts.plot(shock_s, shock_T, 'kX', markersize=15, 
-                          label='Choc normal', zorder=5, markeredgewidth=2)
-                ax_ts.annotate('CHOC', xy=(shock_s, shock_T), 
-                              xytext=(shock_s + 0.2, shock_T + 10),
+                # Vertical segment showing entropy increase
+                ax_ts.plot([s1, s2], [T_shock, T_shock], 
+                          'r-', linewidth=3, alpha=0.8, zorder=6)
+                ax_ts.annotate('', xy=(s2, T_shock), xytext=(s1, T_shock),
+                              arrowprops=dict(arrowstyle='->', color='red', lw=2.5))
+                
+                # Annotation
+                mid_s = (s1 + s2) / 2
+                ax_ts.annotate(f'CHOC\nΔs>0', xy=(mid_s, T_shock), 
+                              xytext=(mid_s, T_shock + 15),
                               fontsize=10, fontweight='bold', color='red',
-                              arrowprops=dict(arrowstyle='->', color='red', lw=2))
+                              ha='center',
+                              arrowprops=dict(arrowstyle='->', color='red', lw=1.5))
                 
                 # Indicate supersonic/subsonic zones
                 if result.mach_before_shock > 1.0:
-                    ax_ts.text(0.05, 0.95, 'Zone supersonique avant choc', 
+                    ax_ts.text(0.05, 0.95, f'Zone supersonique\nM={result.mach_before_shock:.2f}', 
                               transform=ax_ts.transAxes, fontsize=9, 
                               color='red', fontweight='bold', 
                               verticalalignment='top',
-                              bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.5))
+                              bbox=dict(boxstyle='round', facecolor='yellow', alpha=0.7))
                 if result.mach_after_shock < 1.0:
-                    ax_ts.text(0.05, 0.88, 'Zone subsonique après choc', 
+                    ax_ts.text(0.05, 0.82, f'Zone subsonique\nM={result.mach_after_shock:.2f}', 
                               transform=ax_ts.transAxes, fontsize=9, 
                               color='blue', fontweight='bold', 
                               verticalalignment='top',
-                              bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.5))
+                              bbox=dict(boxstyle='round', facecolor='lightblue', alpha=0.7))
             
             # Add arrows
             ax_ts.annotate('', xy=(states['p_noz'][2], states['p_noz'][3]), 

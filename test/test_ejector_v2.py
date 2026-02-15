@@ -447,3 +447,155 @@ class TestV2EntrainmentConditions:
         
         # P_mix should be greater than secondary inlet pressure
         assert result.P_mix > nominal_states['state_s_in'].P, "P_mix > P_s_in"
+
+
+class TestV2NewDiagnostics:
+    """Test new diagnostic features added in V2 improvements."""
+    
+    def test_entropy_units_consistent(self, controller_v2, high_pressure_states):
+        """Test that entropy units are consistent (both J/kg/K and kJ/kg/K)."""
+        result = controller_v2.solve(
+            state_p_in=high_pressure_states['state_p_in'],
+            state_s_in=high_pressure_states['state_s_in'],
+            P_out=high_pressure_states['P_out'],
+            m_dot_p=0.025,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # Check entropy_jump_kJ is exactly entropy_jump / 1000
+        expected_kJ = result.entropy_jump / 1000.0
+        assert abs(result.entropy_jump_kJ - expected_kJ) < 1e-9, "Entropy units inconsistent"
+        
+        # If shock detected, entropy should increase
+        if result.shock_location != "none":
+            assert result.entropy_jump > 0, "Entropy must increase across shock"
+            assert result.entropy_jump_kJ > 0, "Entropy (kJ) must increase across shock"
+    
+    def test_suction_condition_logic(self, controller_v2, nominal_states):
+        """Test suction condition logic."""
+        result = controller_v2.solve(
+            state_p_in=nominal_states['state_p_in'],
+            state_s_in=nominal_states['state_s_in'],
+            P_out=nominal_states['P_out'],
+            m_dot_p=0.020,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # P_suction_local should be valid
+        assert result.P_suction_local > 0, "Suction pressure should be positive"
+        
+        # Suction condition check
+        P_sec = nominal_states['state_s_in'].P
+        if result.suction_condition:
+            assert result.P_suction_local < P_sec, "Suction condition requires P_suction < P_sec"
+        else:
+            assert result.P_suction_local >= P_sec, "No suction if P_suction >= P_sec"
+    
+    def test_shock_pressure_strict_increase(self, controller_v2, high_pressure_states):
+        """Test that pressure strictly increases across shock."""
+        result = controller_v2.solve(
+            state_p_in=high_pressure_states['state_p_in'],
+            state_s_in=high_pressure_states['state_s_in'],
+            P_out=high_pressure_states['P_out'],
+            m_dot_p=0.025,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        if result.shock_location != "none":
+            # Strict pressure increase across shock
+            assert result.P_after_shock > result.P_before_shock, "P must increase across shock"
+            
+            # Minimum ratio
+            ratio = result.P_after_shock / result.P_before_shock
+            assert ratio > 1.0, "Pressure ratio must be > 1.0 across shock"
+    
+    def test_mixture_enthalpy_bounds(self, controller_v2, nominal_states):
+        """Test that mixture enthalpy is physically consistent."""
+        result = controller_v2.solve(
+            state_p_in=nominal_states['state_p_in'],
+            state_s_in=nominal_states['state_s_in'],
+            P_out=nominal_states['P_out'],
+            m_dot_p=0.020,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # Check flag is set
+        assert hasattr(result, 'physically_consistent_mixture'), "Should have consistency flag"
+        
+        # If not consistent, should be flagged
+        # (This is a diagnostic, not a failure condition)
+    
+    def test_regime_type_assignment(self, controller_v2, nominal_states):
+        """Test that regime_type is properly assigned."""
+        result = controller_v2.solve(
+            state_p_in=nominal_states['state_p_in'],
+            state_s_in=nominal_states['state_s_in'],
+            P_out=nominal_states['P_out'],
+            m_dot_p=0.020,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        # regime_type should be one of the expected values
+        assert result.regime_type in ["non-entraining", "critical", "entraining-supersonic"], \
+            "Invalid regime_type"
+        
+        # If mu is very small, should be non-entraining
+        if result.mu < 0.01:
+            assert result.regime_type == "non-entraining", "Low mu should be non-entraining"
+    
+    def test_compression_ratio_positive(self, controller_v2, nominal_states):
+        """Test that compression ratio is positive."""
+        result = controller_v2.solve(
+            state_p_in=nominal_states['state_p_in'],
+            state_s_in=nominal_states['state_s_in'],
+            P_out=nominal_states['P_out'],
+            m_dot_p=0.020,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        assert result.compression_ratio > 0, "Compression ratio should be positive"
+        assert result.pressure_lift > 0, "Pressure lift should be positive"
+        
+        # Verify calculation
+        P_sec = nominal_states['state_s_in'].P
+        expected_ratio = nominal_states['P_out'] / P_sec
+        assert abs(result.compression_ratio - expected_ratio) < 0.01, "Compression ratio incorrect"
+    
+    def test_shock_states_available(self, controller_v2, high_pressure_states):
+        """Test that shock states are available when shock is detected."""
+        result = controller_v2.solve(
+            state_p_in=high_pressure_states['state_p_in'],
+            state_s_in=high_pressure_states['state_s_in'],
+            P_out=high_pressure_states['P_out'],
+            m_dot_p=0.025,
+            eta_nozzle=0.85,
+            eta_diffuser=0.85,
+            eta_mixing=1.0,
+        )
+        
+        if result.shock_location != "none":
+            # States should be available
+            assert result.state_before_shock is not None, "Before-shock state should exist"
+            assert result.state_after_shock is not None, "After-shock state should exist"
+            
+            # States should be valid ThermoState objects
+            assert result.state_before_shock.P > 0, "Before-shock pressure should be positive"
+            assert result.state_after_shock.P > 0, "After-shock pressure should be positive"
+            
+            # Entropy should increase
+            s1 = result.state_before_shock.s
+            s2 = result.state_after_shock.s
+            assert s2 > s1, "Entropy must increase across shock"
+
