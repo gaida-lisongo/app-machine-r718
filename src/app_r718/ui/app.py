@@ -1,0 +1,129 @@
+"""
+Main Application Window - R718 Ejector Refrigeration System Simulator
+
+Provides the main window with buttons to access different module simulations.
+
+Author: R718 Ejector Refrigeration Project
+Date: 2026-02-15
+"""
+
+import tkinter as tk
+from tkinter import ttk
+
+
+class MainWindow:
+    """
+    Main application window for R718 refrigeration system simulator.
+    
+    Provides access to individual module simulations through buttons.
+    """
+    
+    def __init__(self):
+        """Initialize the main application window."""
+        self.root = tk.Tk()
+        self.root.title("Simulateur R718 – Machine à éjecteur")
+        self.root.geometry("600x400")
+        
+        self._setup_ui()
+    
+    def _setup_ui(self):
+        """Set up the user interface components."""
+        # Header
+        header = ttk.Label(
+            self.root,
+            text="Simulateur de Machine Frigorifique à Éjecteur R718",
+            font=("Arial", 16, "bold"),
+        )
+        header.pack(pady=20)
+        
+        # Description
+        desc = ttk.Label(
+            self.root,
+            text="Système solaire de 12 kW utilisant l'eau (R718) comme fluide frigorigène",
+            font=("Arial", 10),
+        )
+        desc.pack(pady=10)
+        
+        # Separator
+        ttk.Separator(self.root, orient="horizontal").pack(fill="x", pady=20)
+        
+        # Module buttons frame
+        modules_frame = ttk.LabelFrame(
+            self.root,
+            text="Modules de Simulation",
+            padding=20,
+        )
+        modules_frame.pack(padx=20, pady=10, fill="both", expand=True)
+        
+        # Create buttons for each module
+        self._create_module_buttons(modules_frame)
+        
+        # Footer
+        footer = ttk.Label(
+            self.root,
+            text="R718 Ejector Refrigeration Project - 2026",
+            font=("Arial", 8),
+            foreground="gray",
+        )
+        footer.pack(side="bottom", pady=10)
+    
+    def _create_module_buttons(self, parent):
+        """
+        Create buttons for each simulation module.
+        
+        Args:
+            parent: Parent frame widget
+        """
+        button_style = {"width": 25, "padding": 10}
+        
+        # Expansion Valve (available)
+        btn_expansion = ttk.Button(
+            parent,
+            text="🌡️ Détendeur (Expansion Valve)",
+            command=self._open_expansion_valve,
+            **button_style,
+        )
+        btn_expansion.grid(row=0, column=0, padx=10, pady=5, sticky="ew")
+        
+        # Future modules (disabled for now)
+        future_modules = [
+            "❄️ Évaporateur (Evaporator)",
+            "♨️ Condenseur (Condenser)",
+            "⚙️ Pompe (Pump)",
+            "🔥 Générateur (Generator)",
+            "🚀 Éjecteur (Ejector)",
+            "🔄 Système Complet (Full System)",
+        ]
+        
+        for i, module_name in enumerate(future_modules, start=1):
+            btn = ttk.Button(
+                parent,
+                text=module_name,
+                state="disabled",
+                **button_style,
+            )
+            btn.grid(row=i, column=0, padx=10, pady=5, sticky="ew")
+        
+        # Configure grid
+        parent.columnconfigure(0, weight=1)
+    
+    def _open_expansion_valve(self):
+        """Open the Expansion Valve simulation window."""
+        # Import here to avoid circular dependencies and allow headless testing
+        from app_r718.modules.expansion_valve.view import ExpansionValveTkView
+        
+        ExpansionValveTkView.open_window(self.root)
+    
+    def run(self):
+        """Start the application main loop."""
+        self.root.mainloop()
+
+
+def main():
+    """Entry point for the UI application."""
+    app = MainWindow()
+    app.run()
+
+
+if __name__ == "__main__":
+    main()
