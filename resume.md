@@ -1,0 +1,122 @@
+# Résumé de l'application — App R718
+
+Simulateur numérique d'une machine frigorifique solaire à éjecteur (12 kW, eau/R718), avec interface graphique de bureau (Tkinter) et calcul des propriétés thermodynamiques via **CoolProp**.
+
+---
+
+## 1. Organisation générale
+
+L'application suit une architecture **MVC modulaire** : chaque composant physique de la machine est un module autonome composé de trois fichiers (`model.py`, `controller.py`, `view.py`), qui ne communiquent entre eux qu'via un objet d'état thermodynamique partagé (`ThermoState`).
+
+```
+app_r718/
+├── main.py                        → point d'entrée (lance l'UI)
+├── core/                          → briques communes (état + accès CoolProp)
+│   ├── thermo_state.py
+│   └── props_service.py
+├── modules/                       → 7 modules physiques, chacun en MVC
+│   ├── pump/              (model.py, controller.py, view.py)
+│   ├── generator/          "
+│   ├── ejector/            "  (+ model_v2.py, variante avancée)
+│   ├── condenser/          "
+│   ├── expansion_valve/    "
+│   ├── evaporator/         "
+│   └── system_dashboard/   "   → couplage global des 6 modules ci-dessus
+└── ui/app.py                      → fenêtre principale (onglets Tkinter)
+```
+
+- **Point d'entrée** : `main.py` → `app_r718.ui.app.main()`
+- **Fenêtre principale** (`MainWindow`) : ouvre un onglet/une fenêtre par module (Pompe, Générateur, Éjecteur, Condenseur, Détendeur, Évaporateur) + un tableau de bord système qui couple l'ensemble.
+- ~12 200 lignes de code au total, réparties sur 59 fichiers versionnés (dont 8 fichiers de tests).
+
+---
+
+## 2. Unités de stockage (données)
+
+Ce sont les classes qui **portent l'état** — aucune n'effectue de calcul physique, elles ne font que transporter des valeurs entre les couches.
+
+| # | Unité de stockage | Emplacement | Rôle |
+|---|---|---|---|
+| 1 | `ThermoState` | `core/thermo_state.py` | État thermodynamique en un point du cycle : P, T, h, s, x (titre), ρ. C'est **l'unité de stockage centrale** — tous les modules échangent exclusivement des `ThermoState`. |
+| 2 | `PumpResult` | `modules/pump/model.py` | État de sortie pompe, état isentropique, puissance consommée, flags |
+| 3 | `GeneratorResult` | `modules/generator/model.py` | État de sortie chaudière, pertes thermiques, flags |
+| 4 | `EjectorResult` | `modules/ejector/model.py` | États tuyère/mélange/diffuseur, taux d'entraînement μ, régime (critique/sous-critique) |
+| 5 | `CondenserResult` | `modules/condenser/model.py` | État de sortie condenseur, coefficient d'échange global K |
+| 6 | `ExpansionValveResult` | `modules/expansion_valve/model.py` | État de sortie détendeur (détente isenthalpique) |
+| 7 | `EvaporatorResult` | `modules/evaporator/model.py` | État de sortie évaporateur, puissance frigorifique Q_evap |
+| 8 | `CycleResult` | `modules/system_dashboard/model.py` | Résultat global : dictionnaire des 8 états du cycle, métriques (COP, débits, μ), flags de convergence, résultats détaillés par composant |
+
+**→ 8 unités de stockage** : 1 état thermodynamique de base + 7 conteneurs de résultats (un par module, y compris le cycle global).
+
+---
+
+## 3. Unités de traitement (calcul)
+
+Ce sont les classes qui **effectuent les calculs physiques/numériques**.
+
+| # | Unité de traitement | Emplacement | Fonction physique |
+|---|---|---|---|
+| 1 | `PropsService` (singleton) | `core/props_service.py` | Passerelle unique vers CoolProp : calcule h, s, ρ, T, P, x à partir de n'importe quelle paire de propriétés |
+| 2 | `PumpModel` | `modules/pump/model.py` | Compression isentropique du liquide, rendement, alerte cavitation (NPSH) |
+| 3 | `GeneratorModel` | `modules/generator/model.py` | Chauffage direct par apport solaire, rendement optique, pertes convectives/radiatives |
+| 4 | `EjectorModel` (+ `model_v2.py`) | `modules/ejector/model.py` | Écoulement compressible 1D : tuyère, mélange (masse+quantité de mouvement+énergie), choc normal (Rankine-Hugoniot), diffuseur — module le plus complexe (371 lignes) |
+| 5 | `CondenserModel` | `modules/condenser/model.py` | Condensation en film (corrélation de Nusselt), convection naturelle côté air |
+| 6 | `ExpansionValveModel` | `modules/expansion_valve/model.py` | Détente isenthalpique, modèle optionnel d'orifice |
+| 7 | `EvaporatorModel` | `modules/evaporator/model.py` | Évaporation en film, bilan énergétique Q_evap = ṁ_sec·(h3-h2) |
+| 8 | `SystemCycleModel` | `modules/system_dashboard/model.py` | **Orchestrateur global** : enchaîne les 6 modèles ci-dessus, boucle jusqu'à convergence, calcule le COP (407 lignes, le plus volumineux) |
+
+**→ 8 unités de traitement** : 1 service transverse (CoolProp) + 7 moteurs de calcul (un par composant physique, y compris le couplage système).
+
+Chaque module possède en plus un **Controller** (7 au total : Pump, Generator, Ejector, Condenser, ExpansionValve, Evaporator, SystemCycle) qui fait uniquement l'interface entre la vue (UI) et le modèle — validation des entrées, appel du modèle, transmission du résultat — sans logique physique propre.
+
+---
+
+## 4. Fonctionnement de l'application
+
+### 4.1 Utilisation en mode « module isolé »
+Chaque onglet de l'UI (Pompe, Générateur, etc.) permet de tester un composant seul :
+1. L'utilisateur saisit les paramètres (ex : pression de sortie, rendement, débit) dans la **vue** Tkinter.
+2. La **vue** transmet ces paramètres au **controller** du module.
+3. Le **controller** valide les entrées puis appelle le **model**, qui exécute les équations physiques via `PropsService`/CoolProp et renvoie un objet `*Result`.
+4. La vue affiche les résultats (états, puissances, flags de diagnostic).
+
+### 4.2 Utilisation en mode « cycle complet » (tableau de bord système)
+Le `SystemCycleModel` couple les 6 modules physiques selon la convention de numérotation officielle du cycle (points 1 à 8) :
+
+```
+1 (liquide sat., sortie condenseur)
+ ├─→ 2 → Détendeur → Évaporateur → 3 (vapeur sat., aspiration secondaire éjecteur)
+ └─→ 7 → Pompe → Chaudière/Générateur → 8 (vapeur sat., entrée primaire éjecteur)
+
+8 (primaire) + 3 (secondaire) → Éjecteur (tuyère → mélange → choc → diffuseur) → 5
+5 → Condenseur → 6 → (retour à 1)
+```
+
+Séquence de résolution (`solve_cycle`) :
+1. Initialisation des pressions P_cond et P_evap à partir des températures de saturation demandées.
+2. Résolution séquentielle : Pompe → Générateur → Détendeur → Évaporateur → Éjecteur → Condenseur.
+3. Itération jusqu'à convergence (résidu < 1e-6) et vérification de cohérence physique (P > 0, 0 ≤ x ≤ 1).
+4. Calcul des indicateurs de performance : **COP = Q_evap / Q_gen**, taux d'entraînement μ = ṁ_sec/ṁ_pri, débits, puissances.
+5. Le résultat (`CycleResult`) regroupe les 8 états du cycle, les métriques et les flags de diagnostic, affichés dans le tableau de bord.
+
+Un mode de **dimensionnement inverse** existe aussi : si une puissance frigorifique cible (`Q_evap_target`) est fournie, le débit primaire `m_dot_p` est calculé automatiquement plutôt que d'être un paramètre d'entrée.
+
+### 4.3 Tests
+Chaque module dispose de son propre fichier de test (`test/test_<module>.py`) validant le modèle indépendamment, plus un test de couplage global (`test_system_cycle.py`) et un test de la classe `ThermoState`.
+
+### 4.4 Distribution
+L'application peut être packagée en exécutable Windows autonome (`.exe`) via PyInstaller (`build_exe.py`), incluant CoolProp, NumPy et Matplotlib.
+
+---
+
+## 5. Récapitulatif chiffré
+
+| Élément | Quantité |
+|---|---|
+| Modules physiques (MVC) | 7 (Pompe, Générateur, Éjecteur, Condenseur, Détendeur, Évaporateur, Système) |
+| Unités de stockage (états/résultats) | 8 |
+| Unités de traitement (moteurs de calcul) | 8 |
+| Contrôleurs (orchestration) | 7 |
+| Vues Tkinter | 7 |
+| Fichiers de tests | 8 |
+| Lignes de code (src) | ≈ 12 200 |
